@@ -1,0 +1,486 @@
+/*
+ * Design tokens. Light is the default; add class="dark" to <html>
+ * (or .dark-theme to any element) for the dark theme.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Theme-independent scales                                            */
+/* ------------------------------------------------------------------ */
+
+:root {
+    --color-black: #000;
+    --color-white: #fff;
+
+    --black-a1: #0000000d;
+    --black-a2: #0000001a;
+    --black-a3: #00000026;
+    --black-a4: #0003;
+    --black-a5: #0000004d;
+    --black-a6: #0006;
+    --black-a7: #00000080;
+    --black-a8: #0009;
+    --black-a9: #000000b3;
+    --black-a10: #000c;
+    --black-a11: #000000e6;
+    --black-a12: #000000f2;
+
+    /* Typography */
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    --font-mono: "Commit Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    --text-2xs: .625rem;
+    --text-xs: .75rem;
+    --text-xs--line-height: calc(1 / .75);
+    --text-sm: .875rem;
+    --text-sm--line-height: calc(1.25 / .875);
+    --text-base: 1rem;
+    --text-base--line-height: 1.5;
+    --text-lg: 1.125rem;
+    --text-lg--line-height: calc(1.75 / 1.125);
+    --text-xl: 1.25rem;
+    --text-xl--line-height: calc(1.75 / 1.25);
+    --text-2xl: 1.5rem;
+    --text-2xl--line-height: calc(2 / 1.5);
+    --text-3xl: 1.875rem;
+    --text-3xl--line-height: calc(2.25 / 1.875);
+    --text-4xl: 2.25rem;
+    --text-4xl--line-height: calc(2.5 / 2.25);
+
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --leading-tight: 1.25;
+    --leading-snug: 1.375;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.625;
+
+    --tracking-tighter: -.05em;
+    --tracking-tight: -.025em;
+    --tracking-normal: 0em;
+    --tracking-wide: .025em;
+
+    /* Spacing: multiply, e.g. calc(var(--spacing) * 4) = 1rem */
+    --spacing: .25rem;
+
+    /* Radius */
+    --radius-xs: .125rem;
+    --radius-sm: .25rem;
+    --radius-md: .375rem;
+    --radius-lg: .5rem;
+    --radius-xl: .75rem;
+    --radius-2xl: 1rem;
+    --radius-full: 9999px;
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px 0 #0000000d;
+    --shadow-sm: 0 1px 3px 0 #0000001a, 0 1px 2px -1px #0000001a;
+    --shadow-md: 0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a;
+    --shadow-lg: 0 10px 15px -3px #0000001a, 0 4px 6px -4px #0000001a;
+    --shadow-xl: 0 20px 25px -5px #0000001a, 0 8px 10px -6px #0000001a;
+
+    /* Motion */
+    --ease-in: cubic-bezier(.4, 0, 1, 1);
+    --ease-out: cubic-bezier(0, 0, .2, 1);
+    --ease-in-out: cubic-bezier(.4, 0, .2, 1);
+    --duration-fast: .15s;
+    --duration-normal: .2s;
+}
+
+/* ------------------------------------------------------------------ */
+/* Light theme (default)                                               */
+/* ------------------------------------------------------------------ */
+
+:root, .light-theme {
+    color-scheme: light;
+
+    --background: #fdfdfd;
+    --canvas: #eee;
+    --canvas-grid: var(--gray-a2);
+    --scroll-shadow-line-color: var(--gray-2);
+    --gray-a1: #0000000d;
+    --gray-a2: #00000014;
+    --gray-a3: #00000026;
+    --gray-a4: #00000059;
+    --gray-a5: #0006;
+    --gray-a6: #00000080;
+    --gray-a7: #0009;
+    --gray-a8: #000000b2;
+    --gray-a9: #000000bd;
+    --gray-a10: #000000c3;
+    --gray-a11: #000c;
+    --gray-a12: #000000f2;
+    --gray-1: #f0f0f0;
+    --gray-2: #eee;
+    --gray-3: #d7d7d7;
+    --gray-4: #bebebe;
+    --gray-5: #989898;
+    --gray-6: #7e7e7e;
+    --gray-7: #656565;
+    --gray-8: #4c4c4c;
+    --gray-9: #414141;
+    --gray-10: #3a3a3a;
+    --gray-11: #4d4d4d;
+    --gray-12: #191919;
+    --edge-fade-start: #00000020;
+    --edge-fade-end: #0000;
+    --rainbow-cyan: #00d1c6;
+    --rainbow-amber: #e9ac48;
+    --rainbow-purple: #611c98;
+    --highlight-shine: #00000026;
+
+    --bg-base: var(--color-white);
+    --bg-accent: var(--color-black);
+    --bg-accent-hover: var(--black-a11);
+    --bg-overlay: #fffffff2;
+    --ring-accent: var(--black-a4);
+    --text-placeholder: var(--gray-5);
+    --text-on-accent: var(--color-white);
+
+    /* Status scales (green is the "grass" scale in light mode) */
+    --red-a1: #ff000003;
+    --red-a2: #ff000008;
+    --red-a3: #f3000d14;
+    --red-a4: #ff000824;
+    --red-a5: #ff000632;
+    --red-a6: #f8000442;
+    --red-a7: #df000356;
+    --red-a8: #d2000571;
+    --red-a9: #db0007b7;
+    --red-a10: #d10005c1;
+    --red-a11: #c40006d3;
+    --red-a12: #55000de8;
+
+    --green-a1: #00c00004;
+    --green-a2: #0099000a;
+    --green-a3: #00970016;
+    --green-a4: #009f0725;
+    --green-a5: #00930536;
+    --green-a6: #008f0a4d;
+    --green-a7: #018b0f6b;
+    --green-a8: #008d199a;
+    --green-a9: #008619b9;
+    --green-a10: #007b17c1;
+    --green-a11: #006514d5;
+    --green-a12: #002006df;
+
+    --amber-a1: #c0800004;
+    --amber-a2: #f4d10016;
+    --amber-a3: #ffde003d;
+    --amber-a4: #ffd40063;
+    --amber-a5: #f8cf0088;
+    --amber-a6: #eab5008c;
+    --amber-a7: #dc9b009d;
+    --amber-a8: #da8a00c9;
+    --amber-a9: #ffb300c2;
+    --amber-a10: #ffb300e7;
+    --amber-a11: #ab6400;
+    --amber-a12: #341500dd;
+
+    --blue-a1: #0080ff04;
+    --blue-a2: #008cff0b;
+    --blue-a3: #008ff519;
+    --blue-a4: #009eff2a;
+    --blue-a5: #0093ff3d;
+    --blue-a6: #0088f653;
+    --blue-a7: #0083eb71;
+    --blue-a8: #0084e6a1;
+    --blue-a9: #0090ff;
+    --blue-a10: #0086f0fa;
+    --blue-a11: #006dcbf2;
+    --blue-a12: #002359ee;
+}
+
+/* ------------------------------------------------------------------ */
+/* Dark theme                                                          */
+/* ------------------------------------------------------------------ */
+
+:root.dark, .dark-theme {
+    color-scheme: dark;
+
+    --background: #000;
+    --canvas: #14151799;
+    --canvas-grid: var(--gray-2);
+    --scroll-shadow-line-color: var(--gray-3);
+    --gray-a1: #16171aeb;
+    --gray-a2: #18191ce0;
+    --gray-a3: #b0c7d925;
+    --gray-a4: #caecff33;
+    --gray-a5: #d2f3ff3d;
+    --gray-a6: #d7eff847;
+    --gray-a7: #e2f5fe4d;
+    --gray-a8: #d8eaf161;
+    --gray-a9: #dceff673;
+    --gray-a10: #e8f4f880;
+    --gray-a11: #fdfeffa6;
+    --gray-a12: #fdfdfded;
+    --gray-1: #141517;
+    --gray-2: #191b1e;
+    --gray-3: #212629;
+    --gray-4: #293034;
+    --gray-5: #333b3e;
+    --gray-6: #3b4345;
+    --gray-7: #434a4d;
+    --gray-8: #52595b;
+    --gray-9: #6e7679;
+    --gray-10: #878d8f;
+    --gray-11: #a1a4a5;
+    --gray-12: #f0f0f0;
+    --edge-fade-start: #ffffff3d;
+    --edge-fade-end: #fff0;
+    --rainbow-cyan: #00d1c670;
+    --rainbow-amber: #e9ac4870;
+    --rainbow-purple: #611c9870;
+    --highlight-shine: #fff9;
+
+    --bg-base: var(--color-black);
+    --bg-accent: var(--color-white);
+    --bg-accent-hover: var(--gray-12);
+    --bg-overlay: #000000f2;
+    --ring-accent: var(--gray-a4);
+    --text-placeholder: var(--gray-8);
+    --text-on-accent: var(--color-black);
+
+    --red-a1: #f4121209;
+    --red-a2: #f22f3e11;
+    --red-a3: #ff173f2d;
+    --red-a4: #fe0a3b44;
+    --red-a5: #ff204756;
+    --red-a6: #ff3e5668;
+    --red-a7: #ff536184;
+    --red-a8: #ff5d61b0;
+    --red-a9: #fe4e54e4;
+    --red-a10: #ff6465eb;
+    --red-a11: #ff9592;
+    --red-a12: #ffd1d9;
+
+    --green-a1: #00de4505;
+    --green-a2: #29f99d0b;
+    --green-a3: #22ff991e;
+    --green-a4: #11ff992d;
+    --green-a5: #2bffa23c;
+    --green-a6: #44ffaa4b;
+    --green-a7: #50fdac5e;
+    --green-a8: #54ffad73;
+    --green-a9: #44ffa49e;
+    --green-a10: #43fea4ab;
+    --green-a11: #46fea5d4;
+    --green-a12: #bbffd7f0;
+
+    --amber-a1: #e63c0006;
+    --amber-a2: #fd9b000d;
+    --amber-a3: #fa820022;
+    --amber-a4: #fc820032;
+    --amber-a5: #fd8b0041;
+    --amber-a6: #fd9b0051;
+    --amber-a7: #ffab2567;
+    --amber-a8: #ffae3587;
+    --amber-a9: #ffc53d;
+    --amber-a10: #ffd60a;
+    --amber-a11: #ffca16;
+    --amber-a12: #ffe7b3;
+
+    --blue-a1: #004df211;
+    --blue-a2: #1166fb18;
+    --blue-a3: #0077ff3a;
+    --blue-a4: #0075ff57;
+    --blue-a5: #0081fd6b;
+    --blue-a6: #0f89fd7f;
+    --blue-a7: #2a91fe98;
+    --blue-a8: #3094feb9;
+    --blue-a9: #0090ff;
+    --blue-a10: #3b9eff;
+    --blue-a11: #70b8ff;
+    --blue-a12: #c2e6ff;
+}
+
+/* ------------------------------------------------------------------ */
+/* Semantic aliases                                                    */
+/* Declared on every theme root so a nested .dark-theme re-resolves    */
+/* them against its own scale instead of inheriting light values.      */
+/* ------------------------------------------------------------------ */
+
+:root, .light-theme, .dark-theme {
+    --text-default: var(--gray-11);
+    --text-emphasis: var(--gray-12);
+    --text-muted: var(--gray-8);
+    --text-link: var(--blue-a9);
+
+    --bg-subtle: var(--gray-1);
+    --bg-elevated: var(--gray-2);
+    --bg-interactive: var(--gray-a2);
+    --bg-interactive-hover: var(--gray-a3);
+
+    --border-subtle: var(--gray-2);
+    --border-default: var(--gray-3);
+    --border-interactive: var(--gray-a3);
+
+    --ring-focus: var(--gray-a2);
+    --ring-link: var(--blue-a7);
+    --ring-error: var(--red-a7);
+
+    /* Status: rejected/failed, approved/sent, pending, info */
+    --bg-error: var(--red-a3);
+    --bg-error-hover: var(--red-a5);
+    --border-error: var(--red-a6);
+    --border-error-subtle: var(--red-a4);
+    --text-error: var(--red-a11);
+
+    --bg-success: var(--green-a3);
+    --border-success: var(--green-a6);
+    --border-success-subtle: var(--green-a4);
+    --text-success: var(--green-a11);
+
+    --bg-warning: var(--amber-a3);
+    --border-warning: var(--amber-a6);
+    --border-warning-subtle: var(--amber-a4);
+    --text-warning: var(--amber-a11);
+
+    --bg-info: var(--blue-a3);
+    --border-info-subtle: var(--blue-a4);
+    --text-info: var(--blue-a11);
+}
+
+/* ================================================================== */
+/* Added by UI build                                                   */
+/* ================================================================== */
+
+/*
+ * System dark mode. The dark theme above only applies with a .dark class,
+ * so this repeats its values verbatim (generated from that block) for
+ * visitors whose OS prefers dark. .light-theme on <html> opts out.
+ */
+@media (prefers-color-scheme: dark) {
+    :root:not(.light-theme) {
+        color-scheme: dark;
+
+        --background: #000;
+        --canvas: #14151799;
+        --canvas-grid: var(--gray-2);
+        --scroll-shadow-line-color: var(--gray-3);
+        --gray-a1: #16171aeb;
+        --gray-a2: #18191ce0;
+        --gray-a3: #b0c7d925;
+        --gray-a4: #caecff33;
+        --gray-a5: #d2f3ff3d;
+        --gray-a6: #d7eff847;
+        --gray-a7: #e2f5fe4d;
+        --gray-a8: #d8eaf161;
+        --gray-a9: #dceff673;
+        --gray-a10: #e8f4f880;
+        --gray-a11: #fdfeffa6;
+        --gray-a12: #fdfdfded;
+        --gray-1: #141517;
+        --gray-2: #191b1e;
+        --gray-3: #212629;
+        --gray-4: #293034;
+        --gray-5: #333b3e;
+        --gray-6: #3b4345;
+        --gray-7: #434a4d;
+        --gray-8: #52595b;
+        --gray-9: #6e7679;
+        --gray-10: #878d8f;
+        --gray-11: #a1a4a5;
+        --gray-12: #f0f0f0;
+        --edge-fade-start: #ffffff3d;
+        --edge-fade-end: #fff0;
+        --rainbow-cyan: #00d1c670;
+        --rainbow-amber: #e9ac4870;
+        --rainbow-purple: #611c9870;
+        --highlight-shine: #fff9;
+
+        --bg-base: var(--color-black);
+        --bg-accent: var(--color-white);
+        --bg-accent-hover: var(--gray-12);
+        --bg-overlay: #000000f2;
+        --ring-accent: var(--gray-a4);
+        --text-placeholder: var(--gray-8);
+        --text-on-accent: var(--color-black);
+
+        --red-a1: #f4121209;
+        --red-a2: #f22f3e11;
+        --red-a3: #ff173f2d;
+        --red-a4: #fe0a3b44;
+        --red-a5: #ff204756;
+        --red-a6: #ff3e5668;
+        --red-a7: #ff536184;
+        --red-a8: #ff5d61b0;
+        --red-a9: #fe4e54e4;
+        --red-a10: #ff6465eb;
+        --red-a11: #ff9592;
+        --red-a12: #ffd1d9;
+
+        --green-a1: #00de4505;
+        --green-a2: #29f99d0b;
+        --green-a3: #22ff991e;
+        --green-a4: #11ff992d;
+        --green-a5: #2bffa23c;
+        --green-a6: #44ffaa4b;
+        --green-a7: #50fdac5e;
+        --green-a8: #54ffad73;
+        --green-a9: #44ffa49e;
+        --green-a10: #43fea4ab;
+        --green-a11: #46fea5d4;
+        --green-a12: #bbffd7f0;
+
+        --amber-a1: #e63c0006;
+        --amber-a2: #fd9b000d;
+        --amber-a3: #fa820022;
+        --amber-a4: #fc820032;
+        --amber-a5: #fd8b0041;
+        --amber-a6: #fd9b0051;
+        --amber-a7: #ffab2567;
+        --amber-a8: #ffae3587;
+        --amber-a9: #ffc53d;
+        --amber-a10: #ffd60a;
+        --amber-a11: #ffca16;
+        --amber-a12: #ffe7b3;
+
+        --blue-a1: #004df211;
+        --blue-a2: #1166fb18;
+        --blue-a3: #0077ff3a;
+        --blue-a4: #0075ff57;
+        --blue-a5: #0081fd6b;
+        --blue-a6: #0f89fd7f;
+        --blue-a7: #2a91fe98;
+        --blue-a8: #3094feb9;
+        --blue-a9: #0090ff;
+        --blue-a10: #3b9eff;
+        --blue-a11: #70b8ff;
+        --blue-a12: #c2e6ff;
+        --border-control: var(--gray-9);
+    }
+}
+
+/* Form-control borders: --border-default/--border-interactive are below
+   the 3:1 non-text contrast minimum, so inputs use a stronger gray. */
+:root, .light-theme {
+    --border-control: var(--gray-6);
+}
+
+:root.dark, .dark-theme {
+    --border-control: var(--gray-9);
+}
+
+:root, .light-theme, .dark-theme {
+    /* --ring-focus and --ring-link are under 3:1; blue-a9 passes in both themes. */
+    --focus-ring: var(--blue-a9);
+}
+
+:root {
+    --border-width: 1px;
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+
+    /* Layout */
+    --sidebar-width: calc(var(--spacing) * 96);
+    --dialog-width: calc(var(--spacing) * 128);
+    --header-height: calc(var(--spacing) * 14);
+    --detail-max-width: calc(var(--spacing) * 256);
+
+    /* Email preview: emails assume a white canvas in both themes. */
+    --preview-canvas: var(--color-white);
+    --preview-mobile-width: 375px;
+    --preview-height: calc(var(--spacing) * 160);
+}

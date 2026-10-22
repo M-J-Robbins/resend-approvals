@@ -1,0 +1,60 @@
+/*
+ * Label text is always --text-emphasis: --text-warning/--text-info on their
+ * own tints fall below 4.5:1 in the light theme. The tone colour goes on the
+ * icon, where 3:1 is enough.
+ */
+.badge {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: calc(var(--spacing) * 1.25);
+    padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 2);
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-full);
+    background: var(--bg-subtle);
+    color: var(--text-emphasis);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+}
+
+.icon {
+    color: var(--text-default);
+}
+
+.warning {
+    background: var(--bg-warning);
+    border-color: var(--border-warning-subtle);
+}
+
+.warning .icon {
+    color: var(--text-warning);
+}
+
+.progress {
+    background: var(--bg-info);
+    border-color: var(--border-info-subtle);
+}
+
+.progress .icon {
+    color: var(--text-info);
+}
+
+.success {
+    background: var(--bg-success);
+    border-color: var(--border-success-subtle);
+}
+
+.success .icon {
+    color: var(--text-success);
+}
+
+.error {
+    background: var(--bg-error);
+    border-color: var(--border-error-subtle);
+}
+
+.error .icon {
+    color: var(--text-error);
+}

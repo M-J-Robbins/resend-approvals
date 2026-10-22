@@ -1,7 +1,11 @@
+import { Suspense } from "react";
+import { ReviewApp } from "@/components/ReviewApp";
+
+// The selected draft lives in the query string, which needs a Suspense boundary.
 export default function Home() {
   return (
-    <main>
-      <h1>Email approvals</h1>
-    </main>
+    <Suspense>
+      <ReviewApp />
+    </Suspense>
   );
 }

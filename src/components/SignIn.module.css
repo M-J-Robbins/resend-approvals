@@ -1,0 +1,64 @@
+.page {
+    display: grid;
+    place-items: center;
+    min-height: 100dvh;
+    padding: calc(var(--spacing) * 4);
+}
+
+.card {
+    display: grid;
+    gap: calc(var(--spacing) * 3);
+    width: 100%;
+    max-width: var(--dialog-width);
+    padding: calc(var(--spacing) * 8) calc(var(--spacing) * 6);
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-2xl);
+    background: var(--bg-base);
+    box-shadow: var(--shadow-sm);
+}
+
+.title {
+    font-size: var(--text-xl);
+    line-height: var(--text-xl--line-height);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--tracking-tight);
+    color: var(--text-emphasis);
+}
+
+.lede {
+    color: var(--text-default);
+}
+
+.form {
+    display: grid;
+    gap: calc(var(--spacing) * 2);
+    margin-top: calc(var(--spacing) * 3);
+}
+
+.label {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-emphasis);
+}
+
+.input {
+    width: 100%;
+    min-height: calc(var(--spacing) * 10);
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+    border: var(--border-width) solid var(--border-control);
+    border-radius: var(--radius-lg);
+    background: var(--bg-base);
+    font-family: var(--font-mono);
+}
+
+.input[aria-invalid="true"] {
+    border-color: var(--text-error);
+}
+
+.error {
+    color: var(--text-error);
+    font-weight: var(--font-weight-medium);
+}
+
+.form > button {
+    margin-top: calc(var(--spacing) * 2);
+}

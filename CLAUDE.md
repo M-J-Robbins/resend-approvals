@@ -55,4 +55,12 @@ Done:
 
 - Tests (`tests/`): content hash, credential separation, concurrent approval, revisions, send retry (including 10 concurrent retries).
 
-To do: review UI (`src/app/page.tsx` is still a placeholder).
+- Review UI at `/` (client components in `src/components/`, one CSS Module each; styles use `src/app/tokens.css` plus element defaults in `src/app/base.css`):
+  - Sign-in with the reviewer token; any 401 returns to sign-in. All server access goes through `src/lib/client/api.ts` (`/api/review/*` only, `import type` from services).
+  - List with a status filter (default `pending_approval`), polling every 5s while the tab is visible. `?draft=` and `?status=` live in the URL. Master-detail above 48rem, single column with a Back link below.
+  - Detail: To/Cc/Bcc in full, subject, revision number and short hash, Preview/HTML source tabs, desktop/375px preview, review and send facts, revision history.
+  - The preview is `<iframe sandbox="" srcdoc>` with `referrerPolicy="no-referrer"`. Never add `allow-*` flags, and never render agent HTML anywhere else except as escaped text.
+  - The open draft is a snapshot: polling refreshes it only while it is the same revision, and a newer revision shows a Reload notice instead of swapping content. Approve sends the `revision_id` and `content_hash` captured when the confirm dialog opened.
+  - Light and dark themes: `.dark` / `.dark-theme` classes, or `prefers-color-scheme` via the "Added by UI build" block in `tokens.css` (a generated copy of the dark values).
+
+To do: nothing outstanding.

@@ -1,0 +1,72 @@
+.shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+}
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(var(--spacing) * 4);
+    min-height: var(--header-height);
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
+    border-bottom: var(--border-width) solid var(--border-default);
+    background: var(--background);
+}
+
+.title {
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-emphasis);
+}
+
+/* Master-detail on wide screens. */
+.main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    min-height: 0;
+}
+
+.listPane {
+    border-right: var(--border-width) solid var(--border-default);
+    min-width: 0;
+}
+
+.detailPane {
+    min-width: 0;
+}
+
+.placeholder {
+    display: grid;
+    place-items: center;
+    min-height: 100%;
+    padding: calc(var(--spacing) * 8) calc(var(--spacing) * 4);
+    color: var(--text-default);
+    text-align: center;
+}
+
+/*
+ * Single column on narrow screens (and at 200% zoom): show the list, or the
+ * selected draft with a Back link. The breakpoint mirrors 2 × --sidebar-width;
+ * custom properties can't be used inside media queries.
+ */
+@media (max-width: 48rem) {
+    .main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .listPane {
+        border-right: 0;
+    }
+
+    .main[data-view="detail"] .listPane,
+    .main[data-view="list"] .detailPane {
+        display: none;
+    }
+}
