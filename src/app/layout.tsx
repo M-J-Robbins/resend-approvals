@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import "./tokens.css";
 
 export const metadata = { title: "Email approvals" };
 
