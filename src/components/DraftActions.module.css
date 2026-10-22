@@ -1,0 +1,100 @@
+.outcome:focus {
+    outline: none;
+}
+
+.outcome:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+    border-radius: var(--radius-xl);
+}
+
+.outcome:empty {
+    display: none;
+}
+
+.bar {
+    display: grid;
+    gap: calc(var(--spacing) * 3);
+    padding: calc(var(--spacing) * 4);
+    border: var(--border-width) solid var(--border-control);
+    border-radius: var(--radius-xl);
+    background: var(--bg-base);
+    box-shadow: var(--shadow-xs);
+}
+
+.barHeading {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-emphasis);
+}
+
+.barText {
+    color: var(--text-default);
+}
+
+.buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing) * 2);
+}
+
+.summary {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
+}
+
+.summary dt {
+    color: var(--text-default);
+}
+
+.summary dd {
+    min-width: 0;
+    color: var(--text-emphasis);
+    font-weight: var(--font-weight-medium);
+    overflow-wrap: anywhere;
+}
+
+.progress {
+    color: var(--text-emphasis);
+}
+
+.field {
+    display: grid;
+    gap: calc(var(--spacing) * 1.5);
+}
+
+.label {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-emphasis);
+}
+
+.required {
+    font-weight: var(--font-weight-normal);
+    color: var(--text-default);
+}
+
+.textarea {
+    width: 100%;
+    min-height: calc(var(--spacing) * 24);
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+    border: var(--border-width) solid var(--border-control);
+    border-radius: var(--radius-lg);
+    background: var(--bg-base);
+    resize: vertical;
+}
+
+.textarea[aria-invalid="true"] {
+    border-color: var(--text-error);
+}
+
+.help {
+    color: var(--text-default);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.fieldError {
+    color: var(--text-error);
+    font-weight: var(--font-weight-medium);
+}

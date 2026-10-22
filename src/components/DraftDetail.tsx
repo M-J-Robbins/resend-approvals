@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, type DraftView } from "@/lib/client/api";
 import { absoluteTime, relativeTime, shortHash } from "@/lib/client/format";
 import { Button } from "./Button";
+import { DraftActions } from "./DraftActions";
 import { EmailPreview } from "./EmailPreview";
 import { Notice } from "./Notice";
 import { Recipients } from "./Recipients";
@@ -34,6 +35,7 @@ export function DraftDetail({
   const [newer, setNewer] = useState<DraftView | null>(null);
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [now, setNow] = useState(() => Date.now());
+  const [paused, setPaused] = useState(false);
   const viewRef = useRef<DraftView | null>(null);
   useEffect(() => {
     viewRef.current = view;
@@ -66,7 +68,17 @@ export function DraftDetail({
     void fetchDraft("initial");
   }, [fetchDraft]);
 
-  usePolling(() => fetchDraft("poll"), POLL_MS, load.kind === "ready");
+  usePolling(() => fetchDraft("poll"), POLL_MS, load.kind === "ready" && !paused);
+
+  const onUpdated = useCallback(
+    (next: DraftView) => {
+      setView(next);
+      setNewer(null);
+      setNow(Date.now());
+      onChanged();
+    },
+    [onChanged],
+  );
 
   const back = (
     <Link href={backHref} scroll={false} className={styles.back}>
@@ -144,11 +156,19 @@ export function DraftDetail({
         </Notice>
       )}
 
-      <ReviewOutcome view={view} />
+      <DraftActions
+        view={view}
+        stale={newer !== null}
+        onUpdated={onUpdated}
+        onReload={() => void fetchDraft("reload")}
+        onPause={setPaused}
+      />
 
       <Recipients revision={revision} idPrefix="draft" />
 
       <EmailPreview html={revision.html} subject={revision.subject} />
+
+      <ReviewOutcome view={view} />
 
       <RevisionHistory view={view} now={now} />
     </article>

@@ -21,7 +21,7 @@ export class ApiError extends Error {
 }
 
 /** The agent changed the draft after the reviewer opened it. */
-export const isConflict = (e: unknown): e is ApiError =>
+export const isConflict = (e: unknown): boolean =>
   e instanceof ApiError &&
   (e.code === "revision_changed" || e.code === "content_hash_mismatch");
 
