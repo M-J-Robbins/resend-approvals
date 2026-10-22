@@ -24,6 +24,9 @@ export function Workspace({ onSignOut }: { onSignOut: () => void }) {
   const selectedId = params.get("draft");
   const status = parseStatus(params.get("status"));
   const [refreshKey, setRefreshKey] = useState(0);
+  // A draft opened from the URL on page load keeps normal focus order;
+  // one picked from the list gets focus moved to it.
+  const [initialDraft] = useState(selectedId);
 
   const href = useCallback(
     (next: { draft?: string | null; status?: DraftStatus | null }) => {
@@ -63,6 +66,7 @@ export function Workspace({ onSignOut }: { onSignOut: () => void }) {
               id={selectedId}
               backHref={href({ draft: null })}
               onChanged={() => setRefreshKey((k) => k + 1)}
+              focusOnLoad={selectedId !== initialDraft}
             />
           ) : (
             <div className={styles.placeholder}>

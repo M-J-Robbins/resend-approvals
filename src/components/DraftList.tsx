@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, type DraftStatus, type DraftSummary } from "@/lib/client/api";
-import { absoluteTime, relativeTime, STATUS_LABEL, STATUSES } from "@/lib/client/format";
+import { absoluteTime, plural, relativeTime, STATUS_LABEL, STATUSES } from "@/lib/client/format";
+import { useAnnounce } from "./Announcer";
 import { Button } from "./Button";
 import { Notice } from "./Notice";
 import { StatusBadge } from "./StatusBadge";
@@ -34,15 +35,26 @@ export function DraftList({
   const [state, setState] = useState<State>({ kind: "loading" });
   const [now, setNow] = useState(() => Date.now());
   const inFlight = useRef<AbortController | null>(null);
+  const seen = useRef<Set<string> | null>(null);
+  const announce = useAnnounce();
 
   const load = useCallback(
     async (showLoading: boolean) => {
       inFlight.current?.abort();
       const controller = new AbortController();
       inFlight.current = controller;
-      if (showLoading) setState({ kind: "loading" });
+      if (showLoading) {
+        setState({ kind: "loading" });
+        seen.current = null;
+      }
       try {
         const drafts = await api.listDrafts(status, controller.signal);
+        // Announce drafts that arrive while the reviewer is working.
+        const fresh = seen.current ? drafts.filter((d) => !seen.current!.has(d.id)).length : 0;
+        seen.current = new Set(drafts.map((d) => d.id));
+        if (fresh > 0 && status === "pending_approval") {
+          announce(`${plural(fresh, "new draft")} waiting for review.`);
+        }
         setState({ kind: "ready", drafts });
         setNow(Date.now());
       } catch (e) {
@@ -55,7 +67,7 @@ export function DraftList({
         );
       }
     },
-    [status],
+    [status, announce],
   );
 
   useEffect(() => {

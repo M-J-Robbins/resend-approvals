@@ -22,12 +22,17 @@ export function DraftDetail({
   id,
   backHref,
   onChanged,
+  focusOnLoad,
 }: {
   id: string;
   backHref: string;
   /** Tells the list to refresh after this draft changes. */
   onChanged: () => void;
+  /** Move focus to the subject once loaded (the reviewer just picked this draft). */
+  focusOnLoad: boolean;
 }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focused = useRef(false);
   // `view` is the revision the reviewer is looking at. Background polling only
   // refreshes it while it is still the same revision (status/send updates);
   // a newer revision is held in `newer` until the reviewer chooses to reload.
@@ -69,6 +74,22 @@ export function DraftDetail({
   }, [fetchDraft]);
 
   usePolling(() => fetchDraft("poll"), POLL_MS, load.kind === "ready" && !paused);
+
+  const subject = view?.revision.subject;
+  useEffect(() => {
+    if (!subject) return;
+    document.title = `${subject} · Email approvals`;
+    if (focusOnLoad && !focused.current) {
+      focused.current = true;
+      headingRef.current?.focus();
+    }
+  }, [subject, focusOnLoad]);
+  useEffect(
+    () => () => {
+      document.title = "Email approvals";
+    },
+    [],
+  );
 
   const onUpdated = useCallback(
     (next: DraftView) => {
@@ -134,7 +155,7 @@ export function DraftDetail({
             </time>
           </span>
         </div>
-        <h2 id="draft-subject" className={styles.subject}>
+        <h2 id="draft-subject" ref={headingRef} tabIndex={-1} className={styles.subject}>
           {revision.subject}
         </h2>
       </header>

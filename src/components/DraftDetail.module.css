@@ -51,6 +51,11 @@
     overflow-wrap: anywhere;
 }
 
+/* Focused programmatically when a draft opens; no ring for that. */
+.subject:focus {
+    outline: none;
+}
+
 .hash,
 .code {
     font-family: var(--font-mono);

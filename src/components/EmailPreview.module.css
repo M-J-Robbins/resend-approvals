@@ -91,7 +91,8 @@
     padding: calc(var(--spacing) * 3);
     border: var(--border-width) solid var(--border-default);
     border-radius: var(--radius-xl);
-    background: var(--canvas);
+    /* Not --canvas: the focus ring is under 3:1 on that gray in light mode. */
+    background: var(--background);
     overflow-x: auto;
 }
 
