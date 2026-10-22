@@ -341,3 +341,145 @@
     --border-info-subtle: var(--blue-a4);
     --text-info: var(--blue-a11);
 }
+
+/* ================================================================== */
+/* Added by UI build                                                   */
+/* ================================================================== */
+
+/*
+ * System dark mode. The dark theme above only applies with a .dark class,
+ * so this repeats its values verbatim (generated from that block) for
+ * visitors whose OS prefers dark. .light-theme on <html> opts out.
+ */
+@media (prefers-color-scheme: dark) {
+    :root:not(.light-theme) {
+        color-scheme: dark;
+
+        --background: #000;
+        --canvas: #14151799;
+        --canvas-grid: var(--gray-2);
+        --scroll-shadow-line-color: var(--gray-3);
+        --gray-a1: #16171aeb;
+        --gray-a2: #18191ce0;
+        --gray-a3: #b0c7d925;
+        --gray-a4: #caecff33;
+        --gray-a5: #d2f3ff3d;
+        --gray-a6: #d7eff847;
+        --gray-a7: #e2f5fe4d;
+        --gray-a8: #d8eaf161;
+        --gray-a9: #dceff673;
+        --gray-a10: #e8f4f880;
+        --gray-a11: #fdfeffa6;
+        --gray-a12: #fdfdfded;
+        --gray-1: #141517;
+        --gray-2: #191b1e;
+        --gray-3: #212629;
+        --gray-4: #293034;
+        --gray-5: #333b3e;
+        --gray-6: #3b4345;
+        --gray-7: #434a4d;
+        --gray-8: #52595b;
+        --gray-9: #6e7679;
+        --gray-10: #878d8f;
+        --gray-11: #a1a4a5;
+        --gray-12: #f0f0f0;
+        --edge-fade-start: #ffffff3d;
+        --edge-fade-end: #fff0;
+        --rainbow-cyan: #00d1c670;
+        --rainbow-amber: #e9ac4870;
+        --rainbow-purple: #611c9870;
+        --highlight-shine: #fff9;
+
+        --bg-base: var(--color-black);
+        --bg-accent: var(--color-white);
+        --bg-accent-hover: var(--gray-12);
+        --bg-overlay: #000000f2;
+        --ring-accent: var(--gray-a4);
+        --text-placeholder: var(--gray-8);
+        --text-on-accent: var(--color-black);
+
+        --red-a1: #f4121209;
+        --red-a2: #f22f3e11;
+        --red-a3: #ff173f2d;
+        --red-a4: #fe0a3b44;
+        --red-a5: #ff204756;
+        --red-a6: #ff3e5668;
+        --red-a7: #ff536184;
+        --red-a8: #ff5d61b0;
+        --red-a9: #fe4e54e4;
+        --red-a10: #ff6465eb;
+        --red-a11: #ff9592;
+        --red-a12: #ffd1d9;
+
+        --green-a1: #00de4505;
+        --green-a2: #29f99d0b;
+        --green-a3: #22ff991e;
+        --green-a4: #11ff992d;
+        --green-a5: #2bffa23c;
+        --green-a6: #44ffaa4b;
+        --green-a7: #50fdac5e;
+        --green-a8: #54ffad73;
+        --green-a9: #44ffa49e;
+        --green-a10: #43fea4ab;
+        --green-a11: #46fea5d4;
+        --green-a12: #bbffd7f0;
+
+        --amber-a1: #e63c0006;
+        --amber-a2: #fd9b000d;
+        --amber-a3: #fa820022;
+        --amber-a4: #fc820032;
+        --amber-a5: #fd8b0041;
+        --amber-a6: #fd9b0051;
+        --amber-a7: #ffab2567;
+        --amber-a8: #ffae3587;
+        --amber-a9: #ffc53d;
+        --amber-a10: #ffd60a;
+        --amber-a11: #ffca16;
+        --amber-a12: #ffe7b3;
+
+        --blue-a1: #004df211;
+        --blue-a2: #1166fb18;
+        --blue-a3: #0077ff3a;
+        --blue-a4: #0075ff57;
+        --blue-a5: #0081fd6b;
+        --blue-a6: #0f89fd7f;
+        --blue-a7: #2a91fe98;
+        --blue-a8: #3094feb9;
+        --blue-a9: #0090ff;
+        --blue-a10: #3b9eff;
+        --blue-a11: #70b8ff;
+        --blue-a12: #c2e6ff;
+        --border-control: var(--gray-9);
+    }
+}
+
+/* Form-control borders: --border-default/--border-interactive are below
+   the 3:1 non-text contrast minimum, so inputs use a stronger gray. */
+:root, .light-theme {
+    --border-control: var(--gray-6);
+}
+
+:root.dark, .dark-theme {
+    --border-control: var(--gray-9);
+}
+
+:root, .light-theme, .dark-theme {
+    /* --ring-focus and --ring-link are under 3:1; blue-a9 passes in both themes. */
+    --focus-ring: var(--blue-a9);
+}
+
+:root {
+    --border-width: 1px;
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+
+    /* Layout */
+    --sidebar-width: calc(var(--spacing) * 96);
+    --dialog-width: calc(var(--spacing) * 128);
+    --header-height: calc(var(--spacing) * 14);
+
+    /* Email preview: emails assume a white canvas in both themes. */
+    --preview-canvas: var(--color-white);
+    --preview-mobile-width: 375px;
+    --preview-height: calc(var(--spacing) * 160);
+}
