@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { DraftStatus } from "@/lib/client/api";
 import { STATUSES } from "@/lib/client/format";
 import { Button } from "./Button";
+import { DraftDetail } from "./DraftDetail";
 import { DraftList } from "./DraftList";
 import styles from "./Workspace.module.css";
 
@@ -57,7 +58,12 @@ export function Workspace({ onSignOut }: { onSignOut: () => void }) {
         </div>
         <div className={styles.detailPane}>
           {selectedId ? (
-            <p className={styles.placeholder}>Draft {selectedId}</p>
+            <DraftDetail
+              key={selectedId}
+              id={selectedId}
+              backHref={href({ draft: null })}
+              onChanged={() => setRefreshKey((k) => k + 1)}
+            />
           ) : (
             <div className={styles.placeholder}>
               <p>Select a draft to review its recipients and content.</p>

@@ -1,0 +1,61 @@
+.recipients {
+    display: grid;
+    gap: calc(var(--spacing) * 3);
+}
+
+.heading {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-emphasis);
+}
+
+.count {
+    font-weight: var(--font-weight-normal);
+    color: var(--text-default);
+}
+
+.groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--spacing) * 48)), 1fr));
+    gap: calc(var(--spacing) * 3);
+}
+
+.group {
+    display: grid;
+    align-content: start;
+    gap: calc(var(--spacing) * 1.5);
+    padding: calc(var(--spacing) * 3);
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-lg);
+}
+
+.groupLabel {
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--text-emphasis);
+}
+
+.list {
+    display: grid;
+    gap: calc(var(--spacing) * 1);
+    padding: 0;
+    list-style: none;
+}
+
+.address {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+    color: var(--text-emphasis);
+    overflow-wrap: anywhere;
+}
+
+.none,
+.note {
+    color: var(--text-default);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
