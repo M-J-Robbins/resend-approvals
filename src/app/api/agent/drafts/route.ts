@@ -1,6 +1,6 @@
 import { requireAgent } from "@/lib/auth";
 import { agentJson, guard, readJson } from "@/lib/route";
-import { createDraftBody, statusFilter } from "@/lib/validation";
+import { parseCreateDraft, statusFilter } from "@/lib/validation";
 import { createDraft, listDrafts } from "@/services/drafts";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export function POST(req: Request) {
   return guard(async () => {
     requireAgent(req);
-    const body = createDraftBody.parse(await readJson(req));
+    const body = parseCreateDraft(await readJson(req));
     const view = await createDraft(body);
     return agentJson(view, 201, {
       Location: `/api/agent/drafts/${view.id}`,

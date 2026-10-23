@@ -1,6 +1,7 @@
 .recipients {
     display: grid;
     gap: calc(var(--spacing) * 3);
+    min-width: 0;
 }
 
 .heading {
@@ -14,48 +15,189 @@
     color: var(--text-default);
 }
 
-.groups {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--spacing) * 48)), 1fr));
-    gap: calc(var(--spacing) * 3);
+.facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing) * 2) calc(var(--spacing) * 8);
 }
 
-.group {
-    display: grid;
-    align-content: start;
-    gap: calc(var(--spacing) * 1.5);
-    padding: calc(var(--spacing) * 3);
-    border: var(--border-width) solid var(--border-default);
-    border-radius: var(--radius-lg);
-}
-
-.groupLabel {
+.facts dt {
+    color: var(--text-default);
     font-size: var(--text-xs);
     line-height: var(--text-xs--line-height);
-    font-weight: var(--font-weight-semibold);
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
+}
+
+.facts dd {
     color: var(--text-emphasis);
+    font-size: var(--text-lg);
+    line-height: var(--text-lg--line-height);
+    font-weight: var(--font-weight-semibold);
+    font-variant-numeric: tabular-nums;
+}
+
+.searchRow {
+    display: grid;
+    gap: calc(var(--spacing) * 1.5);
+}
+
+.searchLabel {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-emphasis);
+}
+
+.search {
+    width: 100%;
+    max-width: calc(var(--spacing) * 96);
+    min-height: calc(var(--spacing) * 10);
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+    border: var(--border-width) solid var(--border-control);
+    border-radius: var(--radius-lg);
+    background: var(--bg-base);
+}
+
+.range {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+    color: var(--text-default);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.range:focus {
+    outline: none;
 }
 
 .list {
     display: grid;
-    gap: calc(var(--spacing) * 1);
+    margin: 0;
     padding: 0;
     list-style: none;
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-lg);
+}
+
+.list[aria-busy="true"] {
+    opacity: 0.6;
+}
+
+.item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(var(--spacing) * 1) calc(var(--spacing) * 4);
+    padding: calc(var(--spacing) * 1.5) calc(var(--spacing) * 3);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.item + .item {
+    border-top: var(--border-width) solid var(--border-default);
 }
 
 .address {
+    min-width: 0;
     font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    line-height: var(--text-xs--line-height);
     color: var(--text-emphasis);
     overflow-wrap: anywhere;
 }
 
-.none,
-.note {
+.itemStatus {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 1);
+    color: var(--text-emphasis);
+    font-weight: var(--font-weight-medium);
+}
+
+.pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+}
+
+.pageOf {
     color: var(--text-default);
     font-size: var(--text-xs);
     line-height: var(--text-xs--line-height);
+    font-variant-numeric: tabular-nums;
+}
+
+.open {
+    justify-self: start;
+}
+
+/* Overrides the UA popover box; the browser still centres it in the top layer. */
+.popover {
+    width: min(var(--dialog-width), calc(100% - calc(var(--spacing) * 8)));
+    max-height: calc(100dvh - calc(var(--spacing) * 8));
+    padding: calc(var(--spacing) * 5) calc(var(--spacing) * 6) calc(var(--spacing) * 6);
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-2xl);
+    background: var(--bg-base);
+    color: var(--text-default);
+    box-shadow: var(--shadow-xl);
+    overflow: auto;
+}
+
+.popover:popover-open {
+    display: grid;
+    align-content: start;
+    gap: calc(var(--spacing) * 3);
+}
+
+.popover::backdrop {
+    background: var(--black-a7);
+}
+
+.popoverHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(var(--spacing) * 3);
+}
+
+.popoverHeading {
+    font-size: var(--text-lg);
+    line-height: var(--text-lg--line-height);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-emphasis);
+}
+
+@media (max-width: 30rem) {
+    .popover {
+        padding: calc(var(--spacing) * 4);
+    }
+}
+
+/* Keyboard shortcut hint. Hidden on touch-only devices, where there's no Esc key. */
+.kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: calc(var(--spacing) * 5);
+    min-width: calc(var(--spacing) * 5);
+    padding-inline: calc(var(--spacing) * 1);
+    border-radius: var(--radius-md);
+    background: var(--bg-interactive-hover);
+    color: var(--text-default);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    line-height: 1;
+    font-weight: var(--font-weight-normal);
+    user-select: none;
+}
+
+@media (pointer: coarse) {
+    .kbd {
+        display: none;
+    }
+}
+
+@media (forced-colors: active) {
+    .kbd {
+        border: var(--border-width) solid CanvasText;
+    }
 }

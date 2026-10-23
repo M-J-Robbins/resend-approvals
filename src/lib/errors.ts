@@ -10,6 +10,8 @@ export class AppError extends Error {
     readonly code: string,
     message: string,
     readonly hint?: string,
+    /** Extra machine-readable fields merged into the error object. */
+    readonly details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -24,7 +26,7 @@ export const conflict = (code: string, message: string, hint?: string) =>
 export function errorResponse(e: unknown): Response {
   if (e instanceof AppError) {
     return Response.json(
-      { error: { code: e.code, message: e.message, hint: e.hint } },
+      { error: { code: e.code, message: e.message, hint: e.hint, ...e.details } },
       { status: e.status },
     );
   }

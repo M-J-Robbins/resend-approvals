@@ -1,0 +1,138 @@
+.progress {
+    display: grid;
+    gap: calc(var(--spacing) * 3);
+}
+
+.track {
+    display: flex;
+    height: calc(var(--spacing) * 3);
+    overflow: hidden;
+    border: var(--border-width) solid var(--border-control);
+    border-radius: var(--radius-full);
+    background: var(--bg-interactive);
+}
+
+.sent,
+.failed {
+    display: block;
+    height: 100%;
+    transition: width var(--duration-normal) var(--ease-out);
+}
+
+.sent {
+    background: var(--text-success);
+}
+
+/* Hatched, so a failure reads differently from success without colour. */
+.failed {
+    background: repeating-linear-gradient(
+        45deg,
+        var(--text-error) 0 calc(var(--spacing) * 0.5),
+        transparent calc(var(--spacing) * 0.5) calc(var(--spacing) * 1)
+    );
+}
+
+.counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--spacing) * 2) calc(var(--spacing) * 8);
+}
+
+.count dt {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 1.5);
+    color: var(--text-default);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.count dd {
+    color: var(--text-emphasis);
+    font-size: var(--text-lg);
+    line-height: var(--text-lg--line-height);
+    font-weight: var(--font-weight-semibold);
+    font-variant-numeric: tabular-nums;
+}
+
+.caption {
+    color: var(--text-default);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.errors {
+    display: grid;
+    gap: calc(var(--spacing) * 2);
+}
+
+.errorsHeading {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-emphasis);
+}
+
+.errorList {
+    display: grid;
+    gap: calc(var(--spacing) * 2);
+    padding: 0;
+    list-style: none;
+}
+
+.error {
+    display: grid;
+    gap: calc(var(--spacing) * 1);
+    padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 3);
+    border: var(--border-width) solid var(--border-error);
+    border-radius: var(--radius-lg);
+    background: var(--bg-base);
+}
+
+.errorTitle {
+    color: var(--text-emphasis);
+    font-weight: var(--font-weight-medium);
+    overflow-wrap: anywhere;
+}
+
+.errorText {
+    color: var(--text-emphasis);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.errorMeta {
+    color: var(--text-default);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.mono {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sent,
+    .failed {
+        transition: none;
+    }
+}
+
+@media (forced-colors: active) {
+    .sent,
+    .failed {
+        forced-color-adjust: none;
+    }
+
+    .sent {
+        background: Highlight;
+    }
+
+    .failed {
+        background: repeating-linear-gradient(
+            45deg,
+            CanvasText 0 calc(var(--spacing) * 0.5),
+            Canvas calc(var(--spacing) * 0.5) calc(var(--spacing) * 1)
+        );
+    }
+}

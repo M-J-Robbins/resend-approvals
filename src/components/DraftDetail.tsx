@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, type DraftView } from "@/lib/client/api";
-import { absoluteTime, relativeTime, shortHash } from "@/lib/client/format";
+import { absoluteTime, formatCount, relativeTime, shortHash } from "@/lib/client/format";
 import { Button } from "./Button";
 import { DraftActions } from "./DraftActions";
 import { EmailPreview } from "./EmailPreview";
@@ -15,6 +15,8 @@ import { usePolling } from "./usePolling";
 import styles from "./DraftDetail.module.css";
 
 const POLL_MS = 5000;
+/** While sending is in progress, progress refreshes faster. */
+const SENDING_POLL_MS = 2000;
 
 type Load = { kind: "loading" } | { kind: "error"; error: ApiError | null } | { kind: "ready" };
 
@@ -41,6 +43,8 @@ export function DraftDetail({
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [now, setNow] = useState(() => Date.now());
   const [paused, setPaused] = useState(false);
+  // The decision panel is rendered into this element (last in the pane) via a portal.
+  const [barSlot, setBarSlot] = useState<HTMLDivElement | null>(null);
   const viewRef = useRef<DraftView | null>(null);
   useEffect(() => {
     viewRef.current = view;
@@ -73,7 +77,11 @@ export function DraftDetail({
     void fetchDraft("initial");
   }, [fetchDraft]);
 
-  usePolling(() => fetchDraft("poll"), POLL_MS, load.kind === "ready" && !paused);
+  usePolling(
+    () => fetchDraft("poll"),
+    view?.status === "approved" ? SENDING_POLL_MS : POLL_MS,
+    load.kind === "ready" && !paused,
+  );
 
   const subject = view?.revision.subject;
   useEffect(() => {
@@ -138,61 +146,68 @@ export function DraftDetail({
   const { revision } = view;
 
   return (
-    <article className={styles.detail} aria-labelledby="draft-subject">
-      {back}
+    <>
+      <article className={styles.detail} aria-labelledby="draft-subject">
+        {back}
 
-      <header className={styles.header}>
-        <div className={styles.meta}>
-          <StatusBadge status={view.status} />
-          <span>Revision {revision.number}</span>
-          <code className={styles.hash} title={`Content hash ${revision.content_hash}`}>
-            {shortHash(revision.content_hash)}
-          </code>
-          <span>
-            Updated{" "}
-            <time dateTime={view.updated_at} title={absoluteTime(view.updated_at)}>
-              {relativeTime(view.updated_at, now)}
-            </time>
-          </span>
-        </div>
-        <h2 id="draft-subject" ref={headingRef} tabIndex={-1} className={styles.subject}>
-          {revision.subject}
-        </h2>
-      </header>
+        <header className={styles.header}>
+          <div className={styles.meta}>
+            <StatusBadge status={view.status} />
+            <span>Revision {revision.number}</span>
+            <code className={styles.hash} title={`Content hash ${revision.content_hash}`}>
+              {shortHash(revision.content_hash)}
+            </code>
+            <span>
+              Updated{" "}
+              <time dateTime={view.updated_at} title={absoluteTime(view.updated_at)}>
+                {relativeTime(view.updated_at, now)}
+              </time>
+            </span>
+          </div>
+          <h2 id="draft-subject" ref={headingRef} tabIndex={-1} className={styles.subject}>
+            {revision.subject}
+          </h2>
+        </header>
 
-      {newer && (
-        <Notice
-          tone="warning"
-          title={`The agent revised this draft (now revision ${newer.revision.number})`}
-          actions={
-            <Button variant="primary" size="sm" onClick={() => void fetchDraft("reload")}>
-              Reload draft
-            </Button>
-          }
-        >
-          <p>
-            You are looking at revision {revision.number}, which can no longer be approved or rejected.
-            Reload to review the new revision.
-          </p>
-        </Notice>
-      )}
+        {newer && (
+          <Notice
+            tone="warning"
+            title={`The agent revised this draft (now revision ${newer.revision.number})`}
+            actions={
+              <Button variant="primary" size="sm" onClick={() => void fetchDraft("reload")}>
+                Reload draft
+              </Button>
+            }
+          >
+            <p>
+              You are looking at revision {revision.number}, which can no longer be approved or rejected.
+              Reload to review the new revision.
+            </p>
+          </Notice>
+        )}
 
-      <DraftActions
-        view={view}
-        stale={newer !== null}
-        onUpdated={onUpdated}
-        onReload={() => void fetchDraft("reload")}
-        onPause={setPaused}
-      />
+        <DraftActions
+          view={view}
+          stale={newer !== null}
+          now={now}
+          onUpdated={onUpdated}
+          onReload={() => void fetchDraft("reload")}
+          onPause={setPaused}
+          barSlot={barSlot}
+        />
 
-      <Recipients revision={revision} idPrefix="draft" />
+        <Recipients key={revision.id} draftId={view.id} revision={revision} refreshKey={view.send?.updated_at} />
 
-      <EmailPreview html={revision.html} subject={revision.subject} />
+        <EmailPreview html={revision.html} subject={revision.subject} />
 
-      <ReviewOutcome view={view} />
+        <ReviewOutcome view={view} />
 
-      <RevisionHistory view={view} now={now} />
-    </article>
+        <RevisionHistory view={view} now={now} />
+      </article>
+
+      {/* Outside the article so the panel spans the whole pane, not just the content width. */}
+      <div ref={setBarSlot} className={styles.barSlot} />
+    </>
   );
 }
 
@@ -226,18 +241,20 @@ function ReviewOutcome({ view }: { view: DraftView }) {
           <>
             <dt>Send status</dt>
             <dd>{send.status === "sending" ? "Sending" : send.status === "sent" ? "Sent" : "Failed"}</dd>
-            <dt>Resend email id</dt>
+            <dt>Recipients</dt>
             <dd>
-              {send.resend_email_id ? <code className={styles.code}>{send.resend_email_id}</code> : "None yet"}
+              {formatCount(send.recipients_sent)} sent, {formatCount(send.recipients_failed)} failed,{" "}
+              {formatCount(send.recipients_pending)} pending
             </dd>
-            <dt>Attempts</dt>
-            <dd>{send.attempts}</dd>
-            {send.error && (
-              <>
-                <dt>Error</dt>
-                <dd className={styles.prewrap}>{send.error}</dd>
-              </>
-            )}
+            <dt>Batches</dt>
+            <dd>
+              {formatCount(send.chunks_sent)} of {formatCount(send.chunks_total)} sent
+              {send.chunks_failed > 0 && `, ${formatCount(send.chunks_failed)} failed`}
+            </dd>
+            <dt>Last progress</dt>
+            <dd>
+              <time dateTime={send.updated_at}>{absoluteTime(send.updated_at)}</time>
+            </dd>
           </>
         )}
       </dl>

@@ -9,11 +9,12 @@ import {
   newDraft,
   pendingDraft,
   rowsFor,
+  runWorker,
 } from "./helpers/factory";
 
 vi.mock("@/lib/resend", async () => {
   const { fakeResend } = await import("./helpers/fakeResend");
-  return { sendEmail: fakeResend.send };
+  return { sendBatch: fakeResend.send };
 });
 
 beforeEach(() => fakeResend.reset());
@@ -35,33 +36,34 @@ describe("a change needs a new approval", () => {
     await submitDraft(draft.id, revised.revision.id);
     await expectAppError(approveDraft(draft.id, approveInput(draft)), 409, "revision_changed");
 
-    expect(fakeResend.calls).toHaveLength(0);
     expect((await rowsFor(draft.revision.id)).reviews).toHaveLength(0);
+    expect((await rowsFor(draft.revision.id)).sends).toHaveLength(0);
 
     // Approving revision 2 sends revision 2's content, not revision 1's.
     await approveDraft(draft.id, approveInput(revised));
+    await runWorker(draft.id);
     expect(fakeResend.calls).toHaveLength(1);
-    expect(fakeResend.calls[0]?.content.subject).toBe("A different subject");
+    expect(fakeResend.calls[0]?.batch.subject).toBe("A different subject");
   });
 
   it("rejects an approval whose content hash does not match the revision", async () => {
     const draft = await pendingDraft();
 
     await expectAppError(
-      approveDraft(draft.id, { revisionId: draft.revision.id, contentHash: "0".repeat(64) }),
+      approveDraft(draft.id, { ...approveInput(draft), contentHash: "0".repeat(64) }),
       409,
       "content_hash_mismatch",
     );
 
-    expect(fakeResend.calls).toHaveLength(0);
     expect((await getDraftView(draft.id)).status).toBe("pending_approval");
     expect((await rowsFor(draft.revision.id)).reviews).toHaveLength(0);
+    expect((await rowsFor(draft.revision.id)).sends).toHaveLength(0);
   });
 
   it("never lets a revision and an approval both succeed (10 rounds)", async () => {
     for (let round = 0; round < 10; round++) {
       fakeResend.reset();
-      const draft = await pendingDraft();
+      const draft = await pendingDraft({ count: 150 });
 
       const [approval, revision] = await Promise.allSettled([
         approveDraft(draft.id, approveInput(draft)),
@@ -72,11 +74,12 @@ describe("a change needs a new approval", () => {
       const revised = revision.status === "fulfilled";
       expect(approved !== revised, `round ${round}: exactly one must win`).toBe(true);
 
+      await runWorker(draft.id);
       const final = await getDraftView(draft.id);
       if (approved) {
         // Approval won: the original content went out and no new revision exists.
-        expect(fakeResend.calls).toHaveLength(1);
-        expect(fakeResend.calls[0]?.content.subject).toBe(draft.revision.subject);
+        expect(fakeResend.calls).toHaveLength(2);
+        expect(fakeResend.calls.every((c) => c.batch.subject === draft.revision.subject)).toBe(true);
         expect(final.revisions).toHaveLength(1);
         expect(final.status).toBe("sent");
       } else {
@@ -121,9 +124,33 @@ describe("draft state rules", () => {
     expect((await submitDraft(draft.id, revised.revision.id)).status).toBe("pending_approval");
   });
 
-  it("locks a draft once it has been approved and sent", async () => {
+  it("refuses to revise while sending is in progress", async () => {
+    const draft = await pendingDraft({ count: 120 });
+    await approveDraft(draft.id, approveInput(draft));
+
+    // Approved, no chunk sent yet.
+    await expectAppError(reviseDraft(draft.id, { subject: "Too late" }), 409, "draft_locked");
+    await expectAppError(
+      reviseDraft(draft.id, { recipients: ["someone-else@example.com"] }),
+      409,
+      "draft_locked",
+    );
+
+    // Mid-send: the worker is between chunks.
+    fakeResend.delayMs = 300;
+    const worker = runWorker(draft.id);
+    await new Promise((r) => setTimeout(r, 150));
+    await expectAppError(reviseDraft(draft.id, { subject: "Too late" }), 409, "draft_locked");
+    await worker;
+
+    expect(fakeResend.calls.every((c) => c.batch.subject === draft.revision.subject)).toBe(true);
+    expect((await getDraftView(draft.id)).revisions).toHaveLength(1);
+  });
+
+  it("locks a draft once it has been sent", async () => {
     const draft = await pendingDraft();
     await approveDraft(draft.id, approveInput(draft));
+    await runWorker(draft.id);
 
     await expectAppError(reviseDraft(draft.id, { subject: "Too late" }), 409, "draft_locked");
     expect(fakeResend.calls).toHaveLength(1);

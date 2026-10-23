@@ -139,10 +139,7 @@ export function DraftList({
                   <StatusBadge status={d.status} />
                 </span>
                 <span className={styles.rowBottom}>
-                  <span className={styles.recipient}>
-                    To {d.to[0]}
-                    {d.to.length > 1 && <> +{d.to.length - 1} more</>}
-                  </span>
+                  <span className={styles.recipient}>{plural(d.recipient_count, "recipient")}</span>
                   <time dateTime={d.updated_at} title={absoluteTime(d.updated_at)} className={styles.time}>
                     {relativeTime(d.updated_at, now)}
                   </time>

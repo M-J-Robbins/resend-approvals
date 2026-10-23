@@ -477,7 +477,7 @@
     --sidebar-width: calc(var(--spacing) * 96);
     --dialog-width: calc(var(--spacing) * 128);
     --header-height: calc(var(--spacing) * 14);
-    --detail-max-width: calc(var(--spacing) * 256);
+    --detail-max-width: calc(var(--spacing) * 320); /* 80rem */
 
     /* Email preview: emails assume a white canvas in both themes. */
     --preview-canvas: var(--color-white);

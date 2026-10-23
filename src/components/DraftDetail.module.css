@@ -7,6 +7,26 @@
     padding: calc(var(--spacing) * 6) calc(var(--spacing) * 6) calc(var(--spacing) * 16);
 }
 
+/*
+ * The decision panel's slot: the last child of the detail pane (after the
+ * draft), stuck to the bottom of the viewport while the draft scrolls, and as
+ * wide as the pane. Empty for drafts whose outcome is shown at the top.
+ */
+.barSlot {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+}
+
+.barSlot:empty {
+    display: none;
+}
+
+/* The panel already separates the end of the draft; drop most of the spare space. */
+.detail:has(+ .barSlot:not(:empty)) {
+    padding-bottom: calc(var(--spacing) * 6);
+}
+
 /* Back link only matters in the single-column layout. */
 .back {
     display: none;
@@ -150,6 +170,7 @@
     .back {
         display: inline-flex;
     }
+
 
     .subject {
         font-size: var(--text-xl);

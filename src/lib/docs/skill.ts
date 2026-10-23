@@ -2,24 +2,34 @@
  * Markdown is written with § standing in for a backtick, so this file doesn't
  * need a wall of escapes. It is swapped back when the text is built.
  */
-export function buildSkillMd(origin: string, sandboxRecipient?: string): string {
-  const sandbox = sandboxRecipient
-    ? `Use **${sandboxRecipient}** as the recipient when testing. Any other address will make the send fail (status §failed§, with Resend's error in §send.error§).`
-    : `Ask the user which address can receive test emails. Any other address will make the send fail (status §failed§, with Resend's error in §send.error§).`;
+export function buildSkillMd(origin: string, maxRecipients: number, sandboxRecipient?: string): string {
+  const owner = sandboxRecipient
+    ? `the service owner's address, **${sandboxRecipient}**,`
+    : "the service owner's address (ask the user which one it is),";
 
   const md = `---
 name: email-approvals
-description: Prepare emails that a human must approve before they are sent. Use when the user asks you to draft, send, revise or check the status of an email through the approval service at ${origin}. You can create and revise drafts and submit them for review; only a human can approve and send.
+description: Prepare emails that a human must approve before they are sent, to one recipient or up to ${maxRecipients}, each receiving an individual copy. Use when the user asks you to draft, send, revise or check the status of an email or a bulk/transactional send through the approval service at ${origin}. You can create and revise drafts and submit them for review; only a human can approve, send or resume.
 ---
 
 # Email approvals
 
-An approval service for email. You prepare drafts. A human reviews the exact recipients and content and approves or rejects them. Approved emails are sent through Resend. **You can never approve or send.**
+An approval service for email. You prepare a draft: **one recipients list, one subject, one HTML body**. A human reviews the exact recipient list and content and approves or rejects it. After approval the service sends **each recipient their own individual copy** through Resend, in batches. **You can never approve, send or resume a send.**
 
 - Base URL: ${origin}
 - Auth: header §Authorization: Bearer $EMAIL_APPROVALS_API_KEY§. Use the agent API key the user gave you. If you don't have one, ask the user for it.
 - Human review UI: ${origin}/ (humans sign in there with a different credential that you don't have)
 - Machine-readable spec: ${origin}/openapi.json
+- Discovery: §GET ${origin}/api/agent§ needs no key and returns §service§, §summary§, §docs§ (links to §skill§, §openapi§ and §llms_txt§), §auth§, §you_can§ and §you_cannot§.
+
+## The recipients model
+
+- §recipients§ is a list of plain email addresses. Every address gets a separate email with the same subject and HTML. Nobody sees anyone else's address.
+- There is no §to§, §cc§ or §bcc§. Sending any of them is refused with §validation_error§. A single transactional email is a list of one.
+- At most **${maxRecipients}** unique recipients per draft. For more, split the list across several drafts.
+- The list is stored canonicalised: trimmed, lowercased, de-duplicated and sorted. The same set in any order or case is the same draft. The response tells you §revision.duplicates_removed§.
+- One invalid address rejects the whole request (§invalid_recipients§, listing up to 20 bad addresses with their position in your array). Nothing is dropped silently, so fix the list and send it again.
+- No personalisation or merge variables, no attachments, no scheduling, no unsubscribe headers.
 
 ## Workflow
 
@@ -29,12 +39,12 @@ An approval service for email. You prepare drafts. A human reviews the exact rec
 curl -sS -X POST ${origin}/api/agent/drafts \\
   -H "Authorization: Bearer $EMAIL_APPROVALS_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"to":["person@example.com"],"subject":"Hello","html":"<p>Hi there</p>"}'
+  -d '{"recipients":["ada@example.com","grace@example.com"],"subject":"Hello","html":"<p>Hi there</p>"}'
 §§§
 
-   The response is the draft. Note §id§ and §revision.id§.
+   The response is the draft. Note §id§, §revision.id§ and §revision.recipient_count§. Only the first 10 recipients are returned inline (§revision.recipients_preview§).
 
-2. **Revise** if needed. Send only the fields that change; the rest are kept. This creates a new revision.
+2. **Revise** if needed. Send only the fields that change; the rest are kept. A §recipients§ list you send **replaces the whole list**. This creates a new revision.
 
 §§§bash
 curl -sS -X PUT ${origin}/api/agent/drafts/DRAFT_ID \\
@@ -52,7 +62,7 @@ curl -sS -X POST ${origin}/api/agent/drafts/DRAFT_ID/submit \\
   -d '{"revision_id":"REVISION_ID"}'
 §§§
 
-4. **Tell the user** that the draft is waiting for their review at ${origin}/, with the draft id and subject. A human has to act, so don't wait silently.
+4. **Tell the user** that the draft is waiting for their review at ${origin}/, with the draft id, subject and recipient count. A human has to act, so don't wait silently.
 
 5. **Check status** to learn what happened.
 
@@ -61,7 +71,45 @@ curl -sS ${origin}/api/agent/drafts/DRAFT_ID \\
   -H "Authorization: Bearer $EMAIL_APPROVALS_API_KEY"
 §§§
 
-   Poll no more often than every 5 seconds, backing off to about 30 seconds. A human may take minutes or longer. If it is still §pending_approval§ after a reasonable wait, stop and tell the user the draft id so they or you can check later.
+   While a human hasn't decided, poll no more often than every 5 seconds, backing off to about 30 seconds. A human may take minutes or longer. If it is still §pending_approval§ after a reasonable wait, stop and tell the user the draft id so they or you can check later. Once it is §approved§, sending is in progress: poll every 5 to 10 seconds and read §send§ until the status is §sent§ or §failed§.
+
+## Paging through recipients
+
+The full list, and each recipient's send status once approved, comes from a paginated endpoint. Query parameters, all optional:
+
+- §offset§ (default 0) and §limit§ (default 50, at most 500).
+- §q§: a case-insensitive substring match on the address.
+- §status§: §pending§, §sent§ or §failed§. Only allowed once the draft has been approved; before that it is refused with 400 §validation_error§.
+- §revision_id§: a revision of this draft. Defaults to the current revision.
+
+§§§bash
+offset=0
+while :; do
+  page=$(curl -sS "${origin}/api/agent/drafts/DRAFT_ID/recipients?offset=$offset&limit=500" \\
+    -H "Authorization: Bearer $EMAIL_APPROVALS_API_KEY")
+  echo "$page" | jq -r '.items[] | "\\(.email) \\(.status // "-")"'
+  count=$(echo "$page" | jq '.items | length')
+  total=$(echo "$page" | jq '.total')
+  offset=$((offset + count))
+  [ "$count" -eq 0 ] || [ "$offset" -ge "$total" ] && break
+done
+§§§
+
+The response:
+
+§§§json
+{
+  "revision_id": "rev_...", "recipient_count": 4812,
+  "total": 4812, "offset": 0, "limit": 500,
+  "items": [{ "email": "ada@example.com", "status": "sent", "resend_email_id": "4ef9a417-..." }]
+}
+§§§
+
+- §revision_id§: the revision these recipients belong to.
+- §recipient_count§: all recipients of that revision. §total§ is how many match §q§ and §status§, so page until §offset + items.length >= total§.
+- §items[].status§ and §items[].resend_email_id§ are null before approval. After approval §status§ is §pending§ (not yet attempted, or in flight), §sent§ (§resend_email_id§ is set) or §failed§.
+
+To list only the recipients that failed: §?status=failed§.
 
 ## Status
 
@@ -69,27 +117,70 @@ curl -sS ${origin}/api/agent/drafts/DRAFT_ID \\
 |---|---|---|
 | §draft§ | Not submitted yet | Submit it, or revise it |
 | §pending_approval§ | Waiting for a human | Poll. Don't resubmit |
-| §approved§ | A human approved it; the send is in progress | Poll |
-| §sent§ | Sent. §send.resend_email_id§ is set | Report success |
+| §approved§ | A human approved it; sending is in progress | Poll and report §send§ progress. You can't revise it now |
+| §sent§ | Resend accepted every email | Report success |
 | §rejected§ | A human rejected it. §review.reason§ says why | Revise to address the reason, then submit again |
-| §failed§ | Approved, but the send failed. §send.error§ has Resend's error | Tell the user. A human can retry the send. You can also revise, which needs a new approval |
+| §failed§ | Sending finished, but at least one batch failed. If §send.partial§ is true, some recipients were sent | Tell the user what §send§ says. **Only a human can resume** the failed part from the review UI |
 
-Every response includes §next_actions§ listing what you can do next, with method, path and body.
+**"sent" means accepted by Resend, not delivered.** This service doesn't receive delivery or bounce events, so it can't tell you whether an email reached an inbox.
+
+## The draft object
+
+Create, revise, submit and get all return the same draft object:
+
+- §id§, §status§, §created_at§, §updated_at§.
+- §revision§: the current revision, the one a human would approve. §id§, §number§, §recipient_count§, §recipients_preview§ (the first 10 in sorted order), §duplicates_removed§, §subject§, §html§, §content_hash§ (SHA-256 of the recipient set, subject and html), §created_at§.
+- §review§: null until a human decides on the current revision, then §{"decision": "approved" | "rejected", "reason", "decided_at"}§. §reason§ is set for rejections.
+- §send§: null until approval, then the sending progress described below.
+- §revisions§: every revision, oldest first, as §{"id","number","content_hash","created_at"}§.
+- §next_actions§: see below.
+
+Every draft response includes §next_actions§ listing what you can do next, with method, path and body. The §action§ names are §submit§, §revise§, §poll§, §list_recipients§ and §none§.
+
+§GET /api/agent/drafts§ lists up to 50 drafts, most recently updated first, as §{"drafts":[{"id","status","revision_number","subject","recipient_count","updated_at"}]}§. Add §?status=pending_approval§ (or any status) to filter.
+
+## Sending progress (§send§)
+
+§send§ is null until a human approves. Then:
+
+§§§json
+{
+  "status": "sending",
+  "recipients_total": 4812, "recipients_sent": 3900, "recipients_failed": 100, "recipients_pending": 812,
+  "chunks_total": 49, "chunks_sent": 39, "chunks_failed": 1, "chunks_pending": 9,
+  "partial": true,
+  "errors": [{ "chunk_index": 12, "first_recipient": "a@x.com", "last_recipient": "c@x.com", "recipient_count": 100, "error": "Resend 422 validation_error: ...", "attempts": 1, "resumable": true }],
+  "updated_at": "2026-10-23T12:00:00.000Z"
+}
+§§§
+
+- Recipients are sent in batches ("chunks") of up to 100, in sorted order. A batch either fully succeeds or fully fails.
+- §errors§ lists up to 20 failed batches, lowest §chunk_index§ first. Each has §first_recipient§ and §last_recipient§ (the range it covers in sorted order), §recipient_count§ (how many recipients it covers), §error§ (Resend's error, or why the outcome is unknown), §attempts§ and §resumable§.
+- **Partial failure:** the draft ends as §failed§ with §partial: true§. Recipients in successful batches got their email; the others did not. A human can **resume**, which retries only the failed batches, never the ones already sent. You can't resume; tell the user.
+- §resumable: false§ means the outcome of that batch is unknown and too old to retry without risking a duplicate. A human has to check the Resend dashboard.
+- Don't "fix" a partial failure by revising the draft or creating a new one with the same list. A new revision is sent to its whole list, so recipients who already got the email would get a second copy. If the user really wants to send to only the failed recipients, list them with §?status=failed§ and create a new draft for just those.
+
+## What the human does (you can't)
+
+These happen in the review UI. Your key is refused on all of them (403 §agent_cannot_review§), but knowing them helps you explain what's going on to the user.
+
+- **Approve** a §pending_approval§ draft. The reviewer approves the exact revision on screen: its id, content hash and recipient count. If you revised the draft meanwhile, the approval is refused (§revision_changed§, §content_hash_mismatch§ or §recipient_count_mismatch§) and nothing is sent; the reviewer reloads and reviews your new revision. Approving starts sending in the background, so the draft becomes §approved§, then §sent§ or §failed§.
+- **Reject** with a reason, which you see in §review.reason§.
+- **Resume** a §failed§ draft, or an §approved§ one that has stopped making progress. Only the failed batches are retried; batches already sent are never sent again. Batches with §resumable: false§ are skipped. Resume is refused with §not_resumable§ if the draft was never approved or already finished sending, and with §retry_unsafe§ if every remaining batch is unsafe to retry.
 
 ## Rules to know
 
-- **Approval applies to one exact revision.** Any revision you make after submitting withdraws the approval request and needs a new approval. A human approves what they reviewed, nothing else.
+- **Approval applies to one exact revision**: the recipient set, subject and HTML. Any revision you make after submitting withdraws the approval request and needs a new approval.
 - **Always submit the current revision.** If submit returns §revision_changed§ (409), GET the draft and use its current §revision.id§.
 - **You can't send.** Your key is refused (403) on every review route. Don't try; ask the human.
-- **Approved drafts are locked.** Once approved or sent, a draft can't be revised. Create a new draft instead.
+- **Approved and sent drafts are locked.** While a draft is §approved§ (sending) or §sent§ it can't be revised (§draft_locked§). Create a new draft instead.
 - Creating a draft is not idempotent. If a create request times out, list drafts (§GET /api/agent/drafts§) before retrying so you don't create duplicates.
 
 ## Request limits
 
-- §to§: required, at least one. At most 50 recipients across §to§, §cc§ and §bcc§.
-- Plain addresses only (§a@b.com§, not §Name <a@b.com>§).
+- §recipients§: required, 1 to ${maxRecipients} unique plain addresses (§a@b.com§, not §Name <a@b.com>§), each at most 254 characters.
 - §subject§: one line, at most 998 characters.
-- §html§: the full HTML body, up to about 1 MB. No separate plain-text part and no attachments.
+- §html§: the full HTML body, up to about 1 MB, identical for everyone. No separate plain-text part and no attachments.
 - §from§ is fixed by the service. Sending a §from§ (or any unknown field) is rejected.
 
 ## Errors
@@ -101,17 +192,21 @@ Every error is JSON: §{"error":{"code","message","hint"}}§. Read §hint§; it 
 | §unauthorized§ | 401 | Missing or invalid API key |
 | §wrong_credential_type§ | 403 | A reviewer credential was used on an agent route |
 | §agent_cannot_review§ | 403 | Your key was used on a review route. Humans only |
-| §validation_error§ | 400 | Bad body. §issues§ lists each problem |
+| §validation_error§ | 400 | Bad body or query. §issues§ lists each problem. Also returned (with a §hint§ instead of §issues§) for §to§/§cc§/§bcc§, and for a recipients §status§ filter before approval |
+| §invalid_recipients§ | 400 | Some addresses are invalid. §invalid§ lists up to 20 as §{index, value}§ (§index§ is the position in your array; very long values are cut at 320 characters), §invalid_count§ has the total |
+| §too_many_recipients§ | 400 | More than ${maxRecipients} unique recipients. §max_recipients§ and §recipient_count§ give the numbers. Split the list into several drafts |
+| §no_recipients§ | 400 | §recipients§ is empty |
 | §invalid_json§ | 400 | Body isn't valid JSON |
-| §not_found§ | 404 | No such draft |
+| §not_found§ | 404 | No such draft or revision |
 | §revision_changed§ | 409 | The revision you named is no longer current |
 | §invalid_state§ | 409 | Not allowed in the draft's current status |
-| §draft_locked§ | 409 | Approved or sent drafts can't be revised |
+| §draft_locked§ | 409 | Approved (sending) or sent drafts can't be revised |
 | §no_changes§ | 409 | The revision is identical to the current one |
+| §internal_error§ | 500 | Unexpected server error. Retry once after a few seconds; a create may have succeeded, so list drafts first |
 
 ## Delivery limits in this deployment
 
-Emails are sent from Resend's shared testing address, which only delivers to one address: the one belonging to the service owner's Resend account. ${sandbox}
+Emails are sent from Resend's shared testing sender, which only delivers to ${owner} and to Resend's test addresses such as §delivered@resend.dev§ (verified to work with this sender; §delivered+anything@resend.dev§ also works). **When testing, use only those addresses.** Any other address fails, and because a batch either fully succeeds or fully fails, one such address fails its whole batch of up to 100 (status §failed§, Resend's error in §send.errors§). Test sends count towards the account's daily sending quota, which is low, so test with a handful of recipients, not thousands.
 `;
   return md.replaceAll("§", "`");
 }
