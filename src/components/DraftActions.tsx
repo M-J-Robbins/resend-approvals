@@ -181,11 +181,6 @@ export function DraftActions({
 
   const count = view.revision.recipient_count;
 
-  // Pending, rejected and failed drafts keep their decision or outcome (and
-  // any error from acting on it) in the panel pinned to the bottom of the pane.
-  const pinned =
-    view.status === "pending_approval" || view.status === "rejected" || view.status === "failed";
-
   const errorNotice = error && (
     <ActionError
       error={error}
@@ -232,11 +227,9 @@ export function DraftActions({
 
   return (
     <>
-      {!pinned && errorNotice}
-      {!pinned && outcomeNotice}
-
-      {pinned &&
-        barSlot &&
+      {/* Every status (the decision, or the outcome) and any error from acting on
+          it live in the panel pinned to the bottom of the pane. */}
+      {barSlot &&
         createPortal(
           // Focusable so its contents can be scrolled with the keyboard when it overflows.
           <div className={styles.panel} role="region" aria-label="Decision" tabIndex={0}>
