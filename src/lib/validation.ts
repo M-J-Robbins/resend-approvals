@@ -1,10 +1,16 @@
 import { z } from "zod";
 import { draftStatus } from "@/db/schema";
+import { AppError } from "./errors";
+import { canonicalRecipients } from "./hash";
 
-const MAX_RECIPIENTS = 50; // Resend's per-email limit
+/** Invalid addresses listed in an invalid_recipients error. */
+const MAX_REPORTED_INVALID = 20;
 
-const address = z.string().trim().email().max(254);
-const recipients = z.array(address).max(MAX_RECIPIENTS);
+const address = z.email().max(254);
+
+// Element types only. Address checks, the cap and de-duplication happen in
+// checkRecipients(), so one bad address out of 5,000 gets a precise answer.
+const recipients = z.array(z.string());
 
 const subject = z
   .string()
@@ -15,37 +21,16 @@ const subject = z
 
 const html = z.string().min(1, "html is required.").max(1_000_000);
 
-const withinRecipientLimit = (v: {
-  to?: string[];
-  cc?: string[];
-  bcc?: string[];
-}) =>
-  (v.to?.length ?? 0) + (v.cc?.length ?? 0) + (v.bcc?.length ?? 0) <=
-  MAX_RECIPIENTS;
-
-const limitMessage = {
-  message: `At most ${MAX_RECIPIENTS} recipients across to, cc and bcc.`,
-};
-
 // .strict() so an agent that sends e.g. "from" gets told it's not allowed
 // instead of having the field silently ignored.
-export const createDraftBody = z
-  .object({
-    to: recipients.min(1, "At least one 'to' recipient is required."),
-    cc: recipients.default([]),
-    bcc: recipients.default([]),
-    subject,
-    html,
-  })
-  .strict()
-  .refine(withinRecipientLimit, limitMessage);
+const createDraftBody = z
+  .object({ recipients, subject, html })
+  .strict();
 
-/** Omitted fields keep their current value. */
-export const reviseDraftBody = z
+/** Omitted fields keep their current value; `recipients` replaces the whole list. */
+const reviseDraftBody = z
   .object({
-    to: recipients.min(1).optional(),
-    cc: recipients.optional(),
-    bcc: recipients.optional(),
+    recipients: recipients.optional(),
     subject: subject.optional(),
     html: html.optional(),
   })
@@ -53,6 +38,81 @@ export const reviseDraftBody = z
   .refine((v) => Object.keys(v).length > 0, {
     message: "Provide at least one field to change.",
   });
+
+const LEGACY_FIELDS = ["to", "cc", "bcc"] as const;
+
+/** The old shape gets a specific answer instead of a generic "unrecognized key". */
+function rejectLegacyFields(raw: unknown) {
+  if (typeof raw !== "object" || raw === null) return;
+  const used = LEGACY_FIELDS.filter((k) => k in raw);
+  if (used.length === 0) return;
+  throw new AppError(
+    400,
+    "validation_error",
+    `The field${used.length > 1 ? "s" : ""} ${used.map((k) => `'${k}'`).join(", ")} ${used.length > 1 ? "are" : "is"} not supported.`,
+    "cc/bcc/to are not supported: send `recipients`; each recipient receives an individual email.",
+  );
+}
+
+export function parseCreateDraft(raw: unknown) {
+  rejectLegacyFields(raw);
+  return createDraftBody.parse(raw);
+}
+
+export function parseReviseDraft(raw: unknown) {
+  rejectLegacyFields(raw);
+  return reviseDraftBody.parse(raw);
+}
+
+/**
+ * Validates every address and returns the canonical list. Never drops an
+ * address silently: one invalid address fails the whole request.
+ */
+export function checkRecipients(
+  list: string[],
+  max: number,
+): { recipients: string[]; duplicatesRemoved: number } {
+  if (list.length === 0) {
+    throw new AppError(
+      400,
+      "no_recipients",
+      "The recipients list is empty.",
+      "Send at least one email address in `recipients`.",
+    );
+  }
+
+  const canonical = canonicalRecipients(list);
+  if (canonical.recipients.length > max) {
+    throw new AppError(
+      400,
+      "too_many_recipients",
+      `${canonical.recipients.length} unique recipients is more than the limit of ${max} per draft.`,
+      `Split the list into several drafts of at most ${max} recipients each.`,
+      { max_recipients: max, recipient_count: canonical.recipients.length },
+    );
+  }
+
+  const invalid: { index: number; value: string }[] = [];
+  let invalidCount = 0;
+  list.forEach((value, index) => {
+    if (address.safeParse(value.trim()).success) return;
+    invalidCount++;
+    if (invalid.length < MAX_REPORTED_INVALID) {
+      invalid.push({ index, value: value.length > 320 ? `${value.slice(0, 320)}…` : value });
+    }
+  });
+  if (invalidCount > 0) {
+    throw new AppError(
+      400,
+      "invalid_recipients",
+      `${invalidCount} recipient${invalidCount === 1 ? " is" : "s are"} not a valid email address.`,
+      "Fix or remove the listed addresses (index is the position in the array you sent) and send the request again. Use plain addresses like a@example.com, not 'Name <a@example.com>'.",
+      { invalid_count: invalidCount, invalid },
+    );
+  }
+
+  return canonical;
+}
 
 export const submitBody = z
   .object({ revision_id: z.string().min(1) })
@@ -62,6 +122,7 @@ export const approveBody = z
   .object({
     revision_id: z.string().min(1),
     content_hash: z.string().regex(/^[a-f0-9]{64}$/, "Expected a SHA-256 hex digest."),
+    recipient_count: z.number().int().min(1),
   })
   .strict();
 
@@ -74,5 +135,14 @@ export const rejectBody = z
 
 export const statusFilter = z.enum(draftStatus.enumValues);
 
-export type CreateDraftInput = z.infer<typeof createDraftBody>;
-export type ReviseDraftInput = z.infer<typeof reviseDraftBody>;
+export const recipientsQuery = z.object({
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(500).default(50),
+  q: z.string().trim().max(254).optional(),
+  status: z.enum(["pending", "sent", "failed"]).optional(),
+  revision_id: z.string().min(1).optional(),
+});
+
+export type CreateDraftInput = ReturnType<typeof parseCreateDraft>;
+export type ReviseDraftInput = ReturnType<typeof parseReviseDraft>;
+export type RecipientsQuery = z.infer<typeof recipientsQuery>;

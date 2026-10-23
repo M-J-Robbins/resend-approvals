@@ -7,6 +7,11 @@ const schema = z
     EMAIL_FROM: z.string().min(1).default("Agent Drafts <onboarding@resend.dev>"),
     AGENT_API_KEY: z.string().min(32),
     REVIEWER_TOKEN: z.string().min(32),
+    // Recipients per draft. Each one is a separate email, so this also bounds a job's size.
+    MAX_RECIPIENTS: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.coerce.number().int().positive().default(5000),
+    ),
   })
   .refine((v) => v.AGENT_API_KEY !== v.REVIEWER_TOKEN, {
     message: "AGENT_API_KEY and REVIEWER_TOKEN must be different secrets",
