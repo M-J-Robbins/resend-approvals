@@ -6,9 +6,11 @@ import { env } from "@/lib/env";
 // Route handlers under test. Credentials are checked before anything else
 // happens, so these never reach the database or Resend.
 import { POST as createDraftRoute } from "@/app/api/agent/drafts/route";
+import { GET as agentRecipientsRoute } from "@/app/api/agent/drafts/[id]/recipients/route";
 import { POST as approveRoute } from "@/app/api/review/drafts/[id]/approve/route";
 import { POST as rejectRoute } from "@/app/api/review/drafts/[id]/reject/route";
-import { POST as retryRoute } from "@/app/api/review/drafts/[id]/retry-send/route";
+import { POST as resumeRoute } from "@/app/api/review/drafts/[id]/resume/route";
+import { GET as reviewRecipientsRoute } from "@/app/api/review/drafts/[id]/recipients/route";
 import { GET as reviewListRoute } from "@/app/api/review/drafts/route";
 import { GET as reviewGetRoute } from "@/app/api/review/drafts/[id]/route";
 
@@ -63,14 +65,20 @@ describe("credential separation", () => {
 
 describe("agent key against the real route handlers", () => {
   const ctx = { params: Promise.resolve({ id: "drf_does_not_matter" }) };
-  const body = JSON.stringify({ revision_id: "rev_x", content_hash: "0".repeat(64), reason: "x" });
+  const body = JSON.stringify({
+    revision_id: "rev_x",
+    content_hash: "0".repeat(64),
+    recipient_count: 1,
+    reason: "x",
+  });
 
   const reviewRoutes: [string, () => Promise<Response>][] = [
     ["POST approve", () => approveRoute(withBearer(agentKey(), { body }), ctx)],
     ["POST reject", () => rejectRoute(withBearer(agentKey(), { body }), ctx)],
-    ["POST retry-send", () => retryRoute(withBearer(agentKey(), { body: "{}" }), ctx)],
+    ["POST resume", () => resumeRoute(withBearer(agentKey(), { body: "{}" }), ctx)],
     ["GET review list", () => reviewListRoute(withBearer(agentKey(), { method: "GET" }))],
     ["GET review draft", () => reviewGetRoute(withBearer(agentKey(), { method: "GET" }), ctx)],
+    ["GET review recipients", () => reviewRecipientsRoute(withBearer(agentKey(), { method: "GET" }), ctx)],
   ];
 
   it.each(reviewRoutes)("is refused with 403 on %s", async (_name, call) => {
@@ -80,10 +88,19 @@ describe("agent key against the real route handlers", () => {
     expect(json.error.code).toBe("agent_cannot_review");
   });
 
-  it("the reviewer token is refused on agent routes", async () => {
-    const res = await createDraftRoute(
-      withBearer(reviewerToken(), { body: JSON.stringify({ to: ["a@example.com"], subject: "x", html: "<p>x</p>" }) }),
-    );
+  it.each([
+    [
+      "POST create draft",
+      () =>
+        createDraftRoute(
+          withBearer(reviewerToken(), {
+            body: JSON.stringify({ recipients: ["a@example.com"], subject: "x", html: "<p>x</p>" }),
+          }),
+        ),
+    ],
+    ["GET agent recipients", () => agentRecipientsRoute(withBearer(reviewerToken(), { method: "GET" }), ctx)],
+  ] as [string, () => Promise<Response>][])("the reviewer token is refused on %s", async (_name, call) => {
+    const res = await call();
     expect(res.status).toBe(403);
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe("wrong_credential_type");
   });
