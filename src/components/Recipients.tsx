@@ -48,6 +48,10 @@ export function Recipients({
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef<AbortController | null>(null);
   const rangeRef = useRef<HTMLParagraphElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // Mirrors the native popover's state, so statuses only refresh while it is visible.
+  const [open, setOpen] = useState(false);
+  const popoverId = `${searchId}-popover`;
   const userAction = useRef(false);
 
   // Debounce typing; a new search starts at the first page.
@@ -94,7 +98,7 @@ export function Recipients({
   }, [load]);
 
   useEffect(() => {
-    if (refreshKey) void load(true);
+    if (refreshKey && open) void load(true);
     // Only a progress change triggers this background refresh, not `load` itself.
   }, [refreshKey]);
 
@@ -148,82 +152,116 @@ export function Recipients({
         </div>
       )}
 
-      <div className={styles.searchRow}>
-        <label htmlFor={searchId} className={styles.searchLabel}>
-          Search recipients
-        </label>
-        <input
-          id={searchId}
-          type="search"
-          className={styles.search}
-          value={query}
-          maxLength={254}
-          autoComplete="off"
-          spellCheck={false}
-          aria-describedby={`${searchId}-range`}
-          onChange={(e) => {
-            userAction.current = true;
-            setQuery(e.target.value);
-          }}
-        />
-      </div>
+      <Button popoverTarget={popoverId} className={styles.open}>
+        {revision.recipient_count === 1
+          ? "View recipient"
+          : `View all ${formatCount(revision.recipient_count)} recipients`}
+      </Button>
 
-      {error ? (
-        <Notice
-          tone="error"
-          headingLevel={4}
-          title="Couldn't load recipients"
-          actions={
-            <Button size="sm" onClick={() => void load(false)}>
-              Try again
-            </Button>
+      {/* Native popover: the browser handles showing, Escape, light dismiss and returning focus. */}
+      <div
+        id={popoverId}
+        popover="auto"
+        role="dialog"
+        aria-labelledby={`${popoverId}-heading`}
+        className={styles.popover}
+        onToggle={(e) => {
+          const isOpen = e.newState === "open";
+          setOpen(isOpen);
+          if (isOpen) {
+            searchRef.current?.focus();
+            // Statuses may have moved on while it was closed.
+            void load(true);
           }
-        >
-          <p>{error}</p>
-        </Notice>
-      ) : (
-        <>
-          <p id={`${searchId}-range`} ref={rangeRef} tabIndex={-1} className={styles.range}>
-            {loading && <Spinner />}
-            {page ? describeRange(page, search) : "Loading recipients…"}
-          </p>
+        }}
+      >
+        <div className={styles.popoverHead}>
+          <h4 id={`${popoverId}-heading`} className={styles.popoverHeading}>
+            Recipients <span className={styles.count}>({formatCount(revision.recipient_count)})</span>
+          </h4>
+          <Button size="sm" variant="ghost" popoverTarget={popoverId} popoverTargetAction="hide">
+            Close
+          </Button>
+        </div>
 
-          {page && page.items.length > 0 && (
-            <ol
-              className={styles.list}
-              start={page.offset + 1}
-              aria-busy={loading || undefined}
-              aria-label={`Recipients ${formatCount(page.offset + 1)} to ${formatCount(page.offset + page.items.length)}`}
+          <div className={styles.searchRow}>
+            <label htmlFor={searchId} className={styles.searchLabel}>
+              Search recipients
+            </label>
+            <input
+              ref={searchRef}
+              id={searchId}
+              type="search"
+              className={styles.search}
+              value={query}
+              maxLength={254}
+              autoComplete="off"
+              spellCheck={false}
+              aria-describedby={`${searchId}-range`}
+              onChange={(e) => {
+                userAction.current = true;
+                setQuery(e.target.value);
+              }}
+            />
+          </div>
+
+          {error ? (
+            <Notice
+              tone="error"
+              headingLevel={4}
+              title="Couldn't load recipients"
+              actions={
+                <Button size="sm" onClick={() => void load(false)}>
+                  Try again
+                </Button>
+              }
             >
-              {page.items.map((item) => (
-                <li key={item.email} className={styles.item}>
-                  <span className={styles.address}>{item.email}</span>
-                  {showStatus && item.status && (
-                    <span className={styles.itemStatus}>
-                      <StatusIcon tone={ITEM_STATUS[item.status].tone} />
-                      {ITEM_STATUS[item.status].label}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ol>
-          )}
+              <p>{error}</p>
+            </Notice>
+          ) : (
+            <>
+              <p id={`${searchId}-range`} ref={rangeRef} tabIndex={-1} className={styles.range}>
+                {loading && <Spinner />}
+                {page ? describeRange(page, search) : "Loading recipients…"}
+              </p>
 
-          {pages > 1 && (
-            <nav className={styles.pager} aria-label="Recipient pages">
-              <Button size="sm" disabled={current <= 1 || loading} onClick={() => go(offset - PAGE_SIZE)}>
-                <span aria-hidden="true">←</span> Previous
-              </Button>
-              <span className={styles.pageOf}>
-                Page {formatCount(current)} of {formatCount(pages)}
-              </span>
-              <Button size="sm" disabled={current >= pages || loading} onClick={() => go(offset + PAGE_SIZE)}>
-                Next <span aria-hidden="true">→</span>
-              </Button>
-            </nav>
+              {page && page.items.length > 0 && (
+                <ol
+                  className={styles.list}
+                  start={page.offset + 1}
+                  aria-busy={loading || undefined}
+                  aria-label={`Recipients ${formatCount(page.offset + 1)} to ${formatCount(page.offset + page.items.length)}`}
+                >
+                  {page.items.map((item) => (
+                    <li key={item.email} className={styles.item}>
+                      <span className={styles.address}>{item.email}</span>
+                      {showStatus && item.status && (
+                        <span className={styles.itemStatus}>
+                          <StatusIcon tone={ITEM_STATUS[item.status].tone} />
+                          {ITEM_STATUS[item.status].label}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              {pages > 1 && (
+                <nav className={styles.pager} aria-label="Recipient pages">
+                  <Button size="sm" disabled={current <= 1 || loading} onClick={() => go(offset - PAGE_SIZE)}>
+                    <span aria-hidden="true">←</span> Previous
+                  </Button>
+                  <span className={styles.pageOf}>
+                    Page {formatCount(current)} of {formatCount(pages)}
+                  </span>
+                  <Button size="sm" disabled={current >= pages || loading} onClick={() => go(offset + PAGE_SIZE)}>
+                    Next <span aria-hidden="true">→</span>
+                  </Button>
+                </nav>
+              )}
+            </>
           )}
-        </>
-      )}
+      </div>
     </section>
   );
 }
