@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, type DraftView } from "@/lib/client/api";
-import { absoluteTime, relativeTime, shortHash } from "@/lib/client/format";
+import { absoluteTime, formatCount, relativeTime, shortHash } from "@/lib/client/format";
 import { Button } from "./Button";
 import { DraftActions } from "./DraftActions";
 import { EmailPreview } from "./EmailPreview";
@@ -15,6 +15,8 @@ import { usePolling } from "./usePolling";
 import styles from "./DraftDetail.module.css";
 
 const POLL_MS = 5000;
+/** While sending is in progress, progress refreshes faster. */
+const SENDING_POLL_MS = 2000;
 
 type Load = { kind: "loading" } | { kind: "error"; error: ApiError | null } | { kind: "ready" };
 
@@ -73,7 +75,11 @@ export function DraftDetail({
     void fetchDraft("initial");
   }, [fetchDraft]);
 
-  usePolling(() => fetchDraft("poll"), POLL_MS, load.kind === "ready" && !paused);
+  usePolling(
+    () => fetchDraft("poll"),
+    view?.status === "approved" ? SENDING_POLL_MS : POLL_MS,
+    load.kind === "ready" && !paused,
+  );
 
   const subject = view?.revision.subject;
   useEffect(() => {
@@ -180,12 +186,13 @@ export function DraftDetail({
       <DraftActions
         view={view}
         stale={newer !== null}
+        now={now}
         onUpdated={onUpdated}
         onReload={() => void fetchDraft("reload")}
         onPause={setPaused}
       />
 
-      <Recipients revision={revision} idPrefix="draft" />
+      <Recipients key={revision.id} draftId={view.id} revision={revision} refreshKey={view.send?.updated_at} />
 
       <EmailPreview html={revision.html} subject={revision.subject} />
 
@@ -226,18 +233,20 @@ function ReviewOutcome({ view }: { view: DraftView }) {
           <>
             <dt>Send status</dt>
             <dd>{send.status === "sending" ? "Sending" : send.status === "sent" ? "Sent" : "Failed"}</dd>
-            <dt>Resend email id</dt>
+            <dt>Recipients</dt>
             <dd>
-              {send.resend_email_id ? <code className={styles.code}>{send.resend_email_id}</code> : "None yet"}
+              {formatCount(send.recipients_sent)} sent, {formatCount(send.recipients_failed)} failed,{" "}
+              {formatCount(send.recipients_pending)} pending
             </dd>
-            <dt>Attempts</dt>
-            <dd>{send.attempts}</dd>
-            {send.error && (
-              <>
-                <dt>Error</dt>
-                <dd className={styles.prewrap}>{send.error}</dd>
-              </>
-            )}
+            <dt>Batches</dt>
+            <dd>
+              {formatCount(send.chunks_sent)} of {formatCount(send.chunks_total)} sent
+              {send.chunks_failed > 0 && `, ${formatCount(send.chunks_failed)} failed`}
+            </dd>
+            <dt>Last progress</dt>
+            <dd>
+              <time dateTime={send.updated_at}>{absoluteTime(send.updated_at)}</time>
+            </dd>
           </>
         )}
       </dl>

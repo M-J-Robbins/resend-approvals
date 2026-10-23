@@ -2,11 +2,13 @@
  * Browser-side client for the reviewer API. The UI talks to the server only
  * through these /api/review/* calls; it never imports services or the DB.
  */
-import type { DraftView, listDrafts } from "@/services/drafts";
+import type { DraftView, listDrafts, listRecipients, SendProgress } from "@/services/drafts";
+import type { ResumeResult } from "@/services/review";
 
-export type { DraftView };
+export type { DraftView, ResumeResult, SendProgress };
 export type DraftStatus = DraftView["status"];
 export type DraftSummary = Awaited<ReturnType<typeof listDrafts>>[number];
+export type RecipientPage = Awaited<ReturnType<typeof listRecipients>>;
 
 export class ApiError extends Error {
   constructor(
@@ -23,7 +25,9 @@ export class ApiError extends Error {
 /** The agent changed the draft after the reviewer opened it. */
 export const isConflict = (e: unknown): boolean =>
   e instanceof ApiError &&
-  (e.code === "revision_changed" || e.code === "content_hash_mismatch");
+  (e.code === "revision_changed" ||
+    e.code === "content_hash_mismatch" ||
+    e.code === "recipient_count_mismatch");
 
 let onUnauthorized: (() => void) | null = null;
 
@@ -91,10 +95,15 @@ export const api = {
 
   getDraft: (id: string, signal?: AbortSignal) => request<DraftView>(draftPath(id), { signal }),
 
-  approve: (id: string, revisionId: string, contentHash: string) =>
+  /** Answers 202 once the send job exists; sending continues in the background. */
+  approve: (id: string, revision: { id: string; content_hash: string; recipient_count: number }) =>
     request<DraftView>(`${draftPath(id)}/approve`, {
       method: "POST",
-      json: { revision_id: revisionId, content_hash: contentHash },
+      json: {
+        revision_id: revision.id,
+        content_hash: revision.content_hash,
+        recipient_count: revision.recipient_count,
+      },
     }),
 
   reject: (id: string, revisionId: string, reason: string) =>
@@ -103,5 +112,19 @@ export const api = {
       json: { revision_id: revisionId, reason },
     }),
 
-  retrySend: (id: string) => request<DraftView>(`${draftPath(id)}/retry-send`, { method: "POST" }),
+  resume: (id: string) => request<ResumeResult>(`${draftPath(id)}/resume`, { method: "POST" }),
+
+  listRecipients: (
+    id: string,
+    query: { revisionId: string; offset: number; limit: number; q?: string },
+    signal?: AbortSignal,
+  ) => {
+    const params = new URLSearchParams({
+      revision_id: query.revisionId,
+      offset: String(query.offset),
+      limit: String(query.limit),
+    });
+    if (query.q) params.set("q", query.q);
+    return request<RecipientPage>(`${draftPath(id)}/recipients?${params}`, { signal });
+  },
 };

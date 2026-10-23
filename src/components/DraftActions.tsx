@@ -2,20 +2,26 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { api, ApiError, isConflict, type DraftView } from "@/lib/client/api";
-import { plural, shortHash } from "@/lib/client/format";
+import { formatCount, parseCount, plural, relativeTime, shortHash } from "@/lib/client/format";
 import { useAnnounce } from "./Announcer";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { Notice } from "./Notice";
-import { Recipients, recipientCount } from "./Recipients";
+import { SendErrors, SendProgress } from "./SendProgress";
 import styles from "./DraftActions.module.css";
 
 type Revision = DraftView["revision"];
-type Pending = "approve" | "reject" | "retry" | null;
+type Pending = "approve" | "reject" | "resume" | null;
+
+/** Above this many recipients the reviewer types the count to confirm. */
+const TYPE_TO_CONFIRM_ABOVE = 100;
+/** An approved draft with no recorded progress for this long may have lost its worker. */
+const STALLED_AFTER_MS = 2 * 60 * 1000;
 
 export function DraftActions({
   view,
   stale,
+  now,
   onUpdated,
   onReload,
   onPause,
@@ -23,6 +29,8 @@ export function DraftActions({
   view: DraftView;
   /** A newer revision exists; the shown one can no longer be decided. */
   stale: boolean;
+  /** Time of the last refresh, for "no progress since". */
+  now: number;
   onUpdated: (next: DraftView) => void;
   onReload: () => void;
   /** Pauses background refresh while a dialog is open or a request runs. */
@@ -36,16 +44,34 @@ export function DraftActions({
   const [error, setError] = useState<ApiError | null>(null);
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState<string | null>(null);
+  const [typedCount, setTypedCount] = useState("");
+  const [resumeNote, setResumeNote] = useState<string | null>(null);
 
   const approveBtn = useRef<HTMLButtonElement>(null);
   const rejectBtn = useRef<HTMLButtonElement>(null);
   const outcome = useRef<HTMLDivElement>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const reasonId = useId();
+  const countId = useId();
 
   useEffect(() => {
     onPause(dialog !== null || pending !== null);
   }, [dialog, pending, onPause]);
+
+  // Say when a job that was running on screen finishes.
+  const lastStatus = useRef(view.status);
+  useEffect(() => {
+    const was = lastStatus.current;
+    lastStatus.current = view.status;
+    if (was !== "approved" || !view.send) return;
+    if (view.status === "sent") {
+      announce(`Sending finished. All ${plural(view.send.recipients_total, "recipient")} were accepted by Resend.`);
+    } else if (view.status === "failed") {
+      announce(
+        `Sending finished with failures: ${formatCount(view.send.recipients_sent)} sent, ${formatCount(view.send.recipients_failed)} failed.`,
+      );
+    }
+  }, [view.status, view.send, announce]);
 
   const decidable = view.status === "pending_approval" && !stale;
 
@@ -54,6 +80,7 @@ export function DraftActions({
     setTarget(view.revision);
     setReason("");
     setReasonError(null);
+    setTypedCount("");
     setDialog(kind);
   }
 
@@ -74,21 +101,19 @@ export function DraftActions({
     requestAnimationFrame(() => outcome.current?.focus());
   }
 
+  const needsTypedCount = (target?.recipient_count ?? 0) > TYPE_TO_CONFIRM_ABOVE;
+  const countConfirmed = !needsTypedCount || parseCount(typedCount) === target?.recipient_count;
+
   async function approve() {
-    if (!target) return;
+    if (!target || !countConfirmed) return;
     setPending("approve");
     try {
-      // The ids/hash of the revision shown in the dialog, never refetched values.
-      const next = await api.approve(view.id, target.id, target.content_hash);
+      // The id, hash and count of the revision shown in the dialog, never refetched values.
+      const next = await api.approve(view.id, target);
       setDialog(null);
+      setResumeNote(null);
       succeeded(next);
-      announce(
-        next.status === "sent"
-          ? `Approved and sent. Resend email id ${next.send?.resend_email_id ?? "unknown"}.`
-          : next.status === "failed"
-            ? `Approved, but the send failed: ${next.send?.error ?? "unknown error"}`
-            : "Approved. The email is being sent.",
-      );
+      announce(`Approved. Sending to ${plural(target.recipient_count, "recipient")} has started.`);
     } catch (e) {
       setDialog(null);
       fail(e, "Approval failed.");
@@ -125,26 +150,29 @@ export function DraftActions({
     }
   }
 
-  async function retry() {
+  async function resume() {
     setError(null);
-    setPending("retry");
-    announce("Retrying the send…");
+    setPending("resume");
+    announce("Resuming sending…");
     try {
-      const next = await api.retrySend(view.id);
+      const next = await api.resume(view.id);
+      const { chunks_reset, skipped_unsafe, hint } = next.resume;
+      const note =
+        `${chunks_reset > 0 ? `Retrying ${plural(chunks_reset, "failed batch", "failed batches")}.` : "Restarted the sending worker."}` +
+        (skipped_unsafe > 0
+          ? ` ${plural(skipped_unsafe, "batch", "batches")} could not be retried safely. ${hint ?? ""}`
+          : "");
+      setResumeNote(note);
       succeeded(next);
-      announce(
-        next.status === "sent"
-          ? `Sent. Resend email id ${next.send?.resend_email_id ?? "unknown"}.`
-          : `The send failed again: ${next.send?.error ?? "unknown error"}`,
-      );
+      announce(note);
     } catch (e) {
-      fail(e, "Retry failed.");
+      fail(e, "Resume failed.");
     } finally {
       setPending(null);
     }
   }
 
-  const count = recipientCount(view.revision);
+  const count = view.revision.recipient_count;
 
   return (
     <>
@@ -159,7 +187,7 @@ export function DraftActions({
       )}
 
       <div ref={outcome} tabIndex={-1} className={styles.outcome}>
-        <Outcome view={view} pending={pending} onRetry={retry} />
+        <Outcome view={view} now={now} pending={pending} note={resumeNote} onResume={resume} />
       </div>
 
       {view.status === "pending_approval" && (
@@ -168,7 +196,7 @@ export function DraftActions({
             Your decision
           </h3>
           <p className={styles.barText}>
-            Approving sends this email to {plural(count, "recipient")} through Resend straight away.
+            Approving sends {count === 1 ? "this email to 1 recipient" : `an individual copy of this email to each of ${formatCount(count)} recipients`} through Resend straight away.
           </p>
           <div className={styles.buttons}>
             <Button ref={approveBtn} variant="primary" disabled={!decidable || pending !== null} onClick={() => open("approve")}>
@@ -187,21 +215,29 @@ export function DraftActions({
           onClose={() => setDialog(null)}
           returnFocus={approveBtn}
           busy={pending === "approve"}
+          onSubmit={approve}
           title="Approve and send this email?"
           description={
             <p>
-              This sends a real email through Resend as soon as you confirm. It can&apos;t be undone.
+              Each recipient gets their own copy of this email through Resend as soon as you
+              confirm. Sending can&apos;t be undone.
             </p>
           }
           footer={
             <>
-              <Button autoFocus disabled={pending === "approve"} onClick={() => setDialog(null)}>
+              <Button autoFocus={!needsTypedCount} disabled={pending === "approve"} onClick={() => setDialog(null)}>
                 Cancel
               </Button>
-              <Button variant="primary" busy={pending === "approve"} onClick={approve}>
+              <Button
+                type="submit"
+                variant="primary"
+                busy={pending === "approve"}
+                disabled={!countConfirmed}
+                aria-describedby={needsTypedCount ? `${countId}-help` : undefined}
+              >
                 {pending === "approve"
-                  ? "Sending…"
-                  : `Approve and send to ${plural(recipientCount(target), "recipient")}`}
+                  ? "Approving…"
+                  : `Approve and send to ${plural(target.recipient_count, "recipient")}`}
               </Button>
             </>
           }
@@ -209,14 +245,35 @@ export function DraftActions({
           <dl className={styles.summary}>
             <dt>Subject</dt>
             <dd>{target.subject}</dd>
+            <dt>Recipients</dt>
+            <dd>{plural(target.recipient_count, "individual email")}</dd>
             <dt>Revision</dt>
             <dd>
               {target.number} · <code>{shortHash(target.content_hash)}</code>
             </dd>
           </dl>
-          <Recipients revision={target} idPrefix="approve" />
-          {pending === "approve" && (
-            <p className={styles.progress}>Sending through Resend. This can take a few seconds…</p>
+          {needsTypedCount && (
+            <div className={styles.field}>
+              <label htmlFor={countId} className={styles.label}>
+                Type the number of recipients, {formatCount(target.recipient_count)}, to confirm
+              </label>
+              <input
+                id={countId}
+                className={styles.input}
+                inputMode="numeric"
+                autoComplete="off"
+                autoFocus
+                value={typedCount}
+                disabled={pending === "approve"}
+                onChange={(e) => setTypedCount(e.target.value)}
+                aria-describedby={`${countId}-help`}
+              />
+              <p id={`${countId}-help`} className={styles.help}>
+                {countConfirmed
+                  ? "Count confirmed."
+                  : `The approve button is enabled once you type ${formatCount(target.recipient_count)}.`}
+              </p>
+            </div>
           )}
         </Dialog>
       )}
@@ -268,7 +325,7 @@ export function DraftActions({
               aria-describedby={`${reasonId}-help${reasonError ? ` ${reasonId}-error` : ""}`}
             />
             <p id={`${reasonId}-help`} className={styles.help}>
-              Be specific, for example “Wrong recipient” or “Remove the pricing section”. Up to 1000
+              Be specific, for example “Wrong recipients” or “Remove the pricing section”. Up to 1000
               characters.
             </p>
             {reasonError && (
@@ -286,51 +343,75 @@ export function DraftActions({
 /** The current state of the decision and send, stated in words. */
 function Outcome({
   view,
+  now,
   pending,
-  onRetry,
+  note,
+  onResume,
 }: {
   view: DraftView;
+  now: number;
   pending: Pending;
-  onRetry: () => void;
+  note: string | null;
+  onResume: () => void;
 }) {
   const { send, review } = view;
+  const resumeButton = (label: string) => (
+    <Button variant="primary" size="sm" busy={pending === "resume"} onClick={onResume}>
+      {pending === "resume" ? "Resuming…" : label}
+    </Button>
+  );
+
   switch (view.status) {
     case "sent":
       return (
-        <Notice tone="success" title="Approved and sent">
-          <p>
-            Resend accepted the email
-            {send?.resend_email_id && (
-              <>
-                {" "}
-                with id <code>{send.resend_email_id}</code>
-              </>
-            )}
-            .
-          </p>
+        <Notice tone="success" title={`Sent to all ${plural(view.revision.recipient_count, "recipient")}`}>
+          <p>Resend accepted every email. Delivery to inboxes isn&apos;t tracked here.</p>
+          {send && <SendProgress send={send} />}
         </Notice>
       );
-    case "failed":
+    case "failed": {
+      const anyResumable = send?.errors.some((e) => e.resumable) ?? false;
       return (
         <Notice
           tone="error"
-          title="Approved, but the send failed"
-          actions={
-            <Button variant="primary" size="sm" busy={pending === "retry"} onClick={onRetry}>
-              {pending === "retry" ? "Retrying…" : "Retry send"}
-            </Button>
+          title={
+            send?.partial
+              ? `Partly sent: ${formatCount(send.recipients_sent)} of ${plural(send.recipients_total, "recipient")}`
+              : "Sending failed"
           }
+          actions={anyResumable && resumeButton("Resume sending")}
         >
-          <p>Resend’s error: {send?.error ?? "No error message was recorded."}</p>
-          {send && <p>Attempts so far: {send.attempts}.</p>}
+          <p>
+            {send?.partial
+              ? "Some batches were accepted by Resend and some failed. Resuming retries only the failed batches; recipients who were already sent are never emailed again."
+              : "No email was accepted. Resuming retries the failed batches."}
+          </p>
+          {note && <p>{note}</p>}
+          {send && <SendProgress send={send} />}
+          {send && <SendErrors send={send} />}
         </Notice>
       );
-    case "approved":
+    }
+    case "approved": {
+      const idleMs = send ? now - new Date(send.updated_at).getTime() : 0;
+      const stalled = idleMs > STALLED_AFTER_MS;
       return (
-        <Notice tone="info" title="Approved, sending now">
-          <p>The email is being sent. This page updates when Resend responds.</p>
+        <Notice
+          tone={stalled ? "warning" : "info"}
+          title={stalled ? "Sending seems to have stopped" : "Approved, sending now"}
+          actions={stalled && resumeButton("Resume sending")}
+        >
+          <p>
+            {stalled && send
+              ? `No progress has been recorded since ${relativeTime(send.updated_at, now)}. The sending worker may have stopped. Resuming is safe: batches that were already accepted are not sent again.`
+              : "Emails are sent in batches in the background. This page updates every 2 seconds."}
+          </p>
+          {note && <p>{note}</p>}
+          {send && <SendProgress send={send} />}
+          {send && <SendErrors send={send} />}
         </Notice>
       );
+    }
     case "rejected":
       return (
         <Notice tone="neutral" title="Rejected">
@@ -365,7 +446,7 @@ function ActionError({ error, onReload }: { error: ApiError; onReload: () => voi
       </Notice>
     );
   }
-  const reloadable = error.code === "invalid_state" || error.code === "not_retryable";
+  const reloadable = error.code === "invalid_state" || error.code === "not_resumable";
   return (
     <Notice
       tone="error"
@@ -396,9 +477,8 @@ function ActionError({ error, onReload }: { error: ApiError; onReload: () => voi
 
 const TITLES: Record<string, string> = {
   invalid_state: "This draft is no longer waiting for approval",
-  send_in_progress: "A send is already in progress",
-  retry_unsafe: "Retrying now could send a duplicate",
-  not_retryable: "This draft can't be retried",
+  retry_unsafe: "Resuming now could send duplicates",
+  not_resumable: "This draft can't be resumed",
   validation_error: "The request was invalid",
   network_error: "Couldn't reach the server",
 };

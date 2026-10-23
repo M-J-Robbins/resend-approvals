@@ -45,7 +45,19 @@ export function relativeTime(iso: string, now = Date.now()): string {
 
 export const absoluteTime = (iso: string) => absolute.format(new Date(iso));
 
-export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const integer = new Intl.NumberFormat("en");
+
+/** 4812 → "4,812". */
+export const formatCount = (n: number) => integer.format(n);
+
+export const plural = (n: number, one: string, many = `${one}s`) =>
+  `${formatCount(n)} ${n === 1 ? one : many}`;
+
+/** Digits only, so "4,812", "4812" and "4 812" all match 4812. */
+export const parseCount = (text: string): number | null => {
+  const digits = text.replace(/[\s,._]/g, "");
+  return /^\d+$/.test(digits) ? Number(digits) : null;
+};
 
 export function formatBytes(n: number): string {
   if (n < 1024) return plural(n, "byte");

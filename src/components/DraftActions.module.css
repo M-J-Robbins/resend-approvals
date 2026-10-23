@@ -55,10 +55,6 @@
     overflow-wrap: anywhere;
 }
 
-.progress {
-    color: var(--text-emphasis);
-}
-
 .field {
     display: grid;
     gap: calc(var(--spacing) * 1.5);
@@ -97,4 +93,15 @@
 .fieldError {
     color: var(--text-error);
     font-weight: var(--font-weight-medium);
+}
+
+.input {
+    width: 100%;
+    max-width: calc(var(--spacing) * 48);
+    min-height: calc(var(--spacing) * 10);
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+    border: var(--border-width) solid var(--border-control);
+    border-radius: var(--radius-lg);
+    background: var(--bg-base);
+    font-variant-numeric: tabular-nums;
 }
