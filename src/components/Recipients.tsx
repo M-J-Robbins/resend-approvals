@@ -162,8 +162,18 @@ export function Recipients({
           <h4 id={`${popoverId}-heading`} className={styles.popoverHeading}>
             Recipients <span className={styles.count}>({formatCount(revision.recipient_count)})</span>
           </h4>
-          <Button size="sm" variant="ghost" popoverTarget={popoverId} popoverTargetAction="hide">
+          <Button
+            size="sm"
+            variant="ghost"
+            popoverTarget={popoverId}
+            popoverTargetAction="hide"
+            aria-keyshortcuts="Escape"
+          >
             Close
+            {/* Visual hint only; aria-keyshortcuts tells assistive tech. */}
+            <kbd className={styles.kbd} aria-hidden="true">
+              Esc
+            </kbd>
           </Button>
         </div>
 
