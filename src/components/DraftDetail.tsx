@@ -43,7 +43,7 @@ export function DraftDetail({
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [now, setNow] = useState(() => Date.now());
   const [paused, setPaused] = useState(false);
-  // The decision bar is rendered into this element (last in the draft) via a portal.
+  // The decision panel is rendered into this element (last in the pane) via a portal.
   const [barSlot, setBarSlot] = useState<HTMLDivElement | null>(null);
   const viewRef = useRef<DraftView | null>(null);
   useEffect(() => {
@@ -146,65 +146,68 @@ export function DraftDetail({
   const { revision } = view;
 
   return (
-    <article className={styles.detail} aria-labelledby="draft-subject">
-      {back}
+    <>
+      <article className={styles.detail} aria-labelledby="draft-subject">
+        {back}
 
-      <header className={styles.header}>
-        <div className={styles.meta}>
-          <StatusBadge status={view.status} />
-          <span>Revision {revision.number}</span>
-          <code className={styles.hash} title={`Content hash ${revision.content_hash}`}>
-            {shortHash(revision.content_hash)}
-          </code>
-          <span>
-            Updated{" "}
-            <time dateTime={view.updated_at} title={absoluteTime(view.updated_at)}>
-              {relativeTime(view.updated_at, now)}
-            </time>
-          </span>
-        </div>
-        <h2 id="draft-subject" ref={headingRef} tabIndex={-1} className={styles.subject}>
-          {revision.subject}
-        </h2>
-      </header>
+        <header className={styles.header}>
+          <div className={styles.meta}>
+            <StatusBadge status={view.status} />
+            <span>Revision {revision.number}</span>
+            <code className={styles.hash} title={`Content hash ${revision.content_hash}`}>
+              {shortHash(revision.content_hash)}
+            </code>
+            <span>
+              Updated{" "}
+              <time dateTime={view.updated_at} title={absoluteTime(view.updated_at)}>
+                {relativeTime(view.updated_at, now)}
+              </time>
+            </span>
+          </div>
+          <h2 id="draft-subject" ref={headingRef} tabIndex={-1} className={styles.subject}>
+            {revision.subject}
+          </h2>
+        </header>
 
-      {newer && (
-        <Notice
-          tone="warning"
-          title={`The agent revised this draft (now revision ${newer.revision.number})`}
-          actions={
-            <Button variant="primary" size="sm" onClick={() => void fetchDraft("reload")}>
-              Reload draft
-            </Button>
-          }
-        >
-          <p>
-            You are looking at revision {revision.number}, which can no longer be approved or rejected.
-            Reload to review the new revision.
-          </p>
-        </Notice>
-      )}
+        {newer && (
+          <Notice
+            tone="warning"
+            title={`The agent revised this draft (now revision ${newer.revision.number})`}
+            actions={
+              <Button variant="primary" size="sm" onClick={() => void fetchDraft("reload")}>
+                Reload draft
+              </Button>
+            }
+          >
+            <p>
+              You are looking at revision {revision.number}, which can no longer be approved or rejected.
+              Reload to review the new revision.
+            </p>
+          </Notice>
+        )}
 
-      <DraftActions
-        view={view}
-        stale={newer !== null}
-        now={now}
-        onUpdated={onUpdated}
-        onReload={() => void fetchDraft("reload")}
-        onPause={setPaused}
-        barSlot={barSlot}
-      />
+        <DraftActions
+          view={view}
+          stale={newer !== null}
+          now={now}
+          onUpdated={onUpdated}
+          onReload={() => void fetchDraft("reload")}
+          onPause={setPaused}
+          barSlot={barSlot}
+        />
 
-      <Recipients key={revision.id} draftId={view.id} revision={revision} refreshKey={view.send?.updated_at} />
+        <Recipients key={revision.id} draftId={view.id} revision={revision} refreshKey={view.send?.updated_at} />
 
-      <EmailPreview html={revision.html} subject={revision.subject} />
+        <EmailPreview html={revision.html} subject={revision.subject} />
 
-      <ReviewOutcome view={view} />
+        <ReviewOutcome view={view} />
 
-      <RevisionHistory view={view} now={now} />
+        <RevisionHistory view={view} now={now} />
+      </article>
 
+      {/* Outside the article so the panel spans the whole pane, not just the content width. */}
       <div ref={setBarSlot} className={styles.barSlot} />
-    </article>
+    </>
   );
 }
 
