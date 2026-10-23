@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -16,10 +15,11 @@ export const newId = (prefix: string) =>
 /**
  * draft       agent is still working on it (or revised it)
  * pending_approval  submitted; waiting for a human
- * approved    human approved; send claimed and in flight
+ * approved    human approved; the send job is in progress
  * rejected    human rejected; agent must revise to continue
- * sent        Resend accepted it
- * failed      approved, but the send failed; a human can retry
+ * sent        Resend accepted every chunk (accepted, not necessarily delivered)
+ * failed      the send job finished with at least one failed chunk (possibly
+ *             partial); a human can resume it
  */
 export const draftStatus = pgEnum("draft_status", [
   "draft",
@@ -34,6 +34,12 @@ export const reviewDecision = pgEnum("review_decision", [
   "rejected",
 ]);
 export const sendStatus = pgEnum("send_status", ["sending", "sent", "failed"]);
+export const chunkStatus = pgEnum("chunk_status", [
+  "pending",
+  "sending",
+  "sent",
+  "failed",
+]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -67,16 +73,12 @@ export const revisions = pgTable(
       .notNull()
       .references(() => drafts.id),
     number: integer("number").notNull(),
-    // "to" is a reserved word in Postgres, so the columns have a suffix.
-    to: text("to_recipients").array().notNull(),
-    cc: text("cc_recipients")
-      .array()
-      .notNull()
-      .default(sql`'{}'::text[]`),
-    bcc: text("bcc_recipients")
-      .array()
-      .notNull()
-      .default(sql`'{}'::text[]`),
+    // Canonical form: trimmed, lowercased, de-duplicated, sorted ascending.
+    // Send chunks address slices of this array by index, so it must never change.
+    recipients: text("recipients").array().notNull(),
+    recipientCount: integer("recipient_count").notNull(),
+    // How many duplicates the agent's list had. Informational, not hashed.
+    duplicatesRemoved: integer("duplicates_removed").notNull().default(0),
     subject: text("subject").notNull(),
     html: text("html").notNull(),
     contentHash: text("content_hash").notNull(),
@@ -102,7 +104,10 @@ export const reviews = pgTable(
   (t) => [uniqueIndex("reviews_revision_uq").on(t.revisionId)],
 );
 
-/** One send per revision, enforced by the unique index. This is the double-send guard. */
+/**
+ * The send job: one per revision, enforced by the unique index. This is the
+ * double-send guard. Its status is the aggregate of its chunks.
+ */
 export const sends = pgTable(
   "sends",
   {
@@ -111,16 +116,10 @@ export const sends = pgTable(
       .notNull()
       .references(() => revisions.id),
     status: sendStatus("status").notNull().default("sending"),
-    resendEmailId: text("resend_email_id"),
-    error: text("error"),
-    attempts: integer("attempts").notNull().default(1),
-    // Sent to Resend as the Idempotency-Key. Starts as the revision id and is
-    // only rotated after Resend definitively rejects a request (see review.ts).
-    idempotencyKey: text("idempotency_key").notNull(),
-    // When the current key was first sent to Resend (null while unused).
-    // Resend remembers keys for 24h, so retrying an uncertain send with the
-    // same key is only safe inside that window.
-    keyFirstUsedAt: timestamp("key_first_used_at", { withTimezone: true }),
+    // Fixed when the job is created, so chunk boundaries never move on retry
+    // even if the chunking rule changes in a later deploy.
+    chunkSize: integer("chunk_size").notNull(),
+    chunkCount: integer("chunk_count").notNull(),
     ...timestamps,
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -129,8 +128,45 @@ export const sends = pgTable(
   (t) => [uniqueIndex("sends_revision_uq").on(t.revisionId)],
 );
 
+/**
+ * One Resend batch request. Chunk N covers
+ * revisions.recipients[N * chunk_size, (N + 1) * chunk_size); the addresses
+ * are not copied here.
+ */
+export const sendChunks = pgTable(
+  "send_chunks",
+  {
+    id: text("id").primaryKey().$defaultFn(() => newId("chk")),
+    revisionId: text("revision_id")
+      .notNull()
+      .references(() => revisions.id),
+    chunkIndex: integer("chunk_index").notNull(),
+    status: chunkStatus("status").notNull().default("pending"),
+    // Sent to Resend as the Idempotency-Key: <revisionId>:c<chunkIndex>:g<keyGeneration>.
+    // Only rotated (generation + 1) after Resend definitively rejects a request.
+    idempotencyKey: text("idempotency_key").notNull(),
+    keyGeneration: integer("key_generation").notNull().default(1),
+    // When the current key was first sent to Resend (null while unused, and
+    // reset on rotation). Resend remembers keys for 24h, so retrying an
+    // uncertain chunk with the same key is only safe inside that window.
+    keyFirstUsedAt: timestamp("key_first_used_at", { withTimezone: true }),
+    attempts: integer("attempts").notNull().default(0),
+    // Aligned by index with the chunk's recipients.
+    resendEmailIds: text("resend_email_ids").array(),
+    error: text("error"),
+    ...timestamps,
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("send_chunks_revision_chunk_uq").on(t.revisionId, t.chunkIndex),
+  ],
+);
+
 export type DraftStatus = (typeof draftStatus.enumValues)[number];
 export type DraftRow = typeof drafts.$inferSelect;
 export type RevisionRow = typeof revisions.$inferSelect;
 export type ReviewRow = typeof reviews.$inferSelect;
 export type SendRow = typeof sends.$inferSelect;
+export type SendChunkRow = typeof sendChunks.$inferSelect;
