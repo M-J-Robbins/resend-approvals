@@ -121,14 +121,6 @@ export function Recipients({
         Recipients <span className={styles.count}>({formatCount(revision.recipient_count)})</span>
       </h3>
 
-      <p className={styles.individual}>
-        <StatusIcon tone="info" />
-        <span>
-          <strong>Each recipient receives an individual email.</strong> Nobody sees the other
-          addresses.
-        </span>
-      </p>
-
       <dl className={styles.facts}>
         <div>
           <dt>Unique recipients</dt>

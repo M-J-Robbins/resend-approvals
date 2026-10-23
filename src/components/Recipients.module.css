@@ -15,27 +15,6 @@
     color: var(--text-default);
 }
 
-.individual {
-    display: flex;
-    align-items: flex-start;
-    gap: calc(var(--spacing) * 2);
-    padding: calc(var(--spacing) * 2.5) calc(var(--spacing) * 3);
-    border: var(--border-width) solid var(--border-default);
-    border-radius: var(--radius-lg);
-    background: var(--bg-subtle);
-    color: var(--text-default);
-}
-
-.individual svg {
-    flex: none;
-    margin-top: calc(var(--spacing) * 0.5);
-}
-
-.individual strong {
-    color: var(--text-emphasis);
-    font-weight: var(--font-weight-semibold);
-}
-
 .facts {
     display: flex;
     flex-wrap: wrap;
