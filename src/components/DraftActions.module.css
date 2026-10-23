@@ -18,14 +18,20 @@
  * inside rather than covering the whole pane.
  */
 .panel {
-    display: grid;
-    gap: calc(var(--spacing) * 3);
     max-height: 50dvh;
     overflow-y: auto;
-    padding: calc(var(--spacing) * 4) calc(var(--spacing) * 6);
+    padding-block: calc(var(--spacing) * 4);
     border-top: var(--border-width) solid var(--border-control);
     background: var(--bg-base);
     box-shadow: var(--shadow-lg);
+}
+
+/* Mirrors .detail in DraftDetail.module.css: same max width and side padding. */
+.panelInner {
+    display: grid;
+    gap: calc(var(--spacing) * 3);
+    max-width: var(--detail-max-width);
+    padding-inline: calc(var(--spacing) * 6);
 }
 
 .summary {
@@ -98,6 +104,10 @@
 
 @media (max-width: 48rem) {
     .panel {
-        padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+        padding-block: calc(var(--spacing) * 3);
+    }
+
+    .panelInner {
+        padding-inline: calc(var(--spacing) * 4);
     }
 }

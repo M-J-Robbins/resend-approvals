@@ -233,8 +233,11 @@ export function DraftActions({
         createPortal(
           // Focusable so its contents can be scrolled with the keyboard when it overflows.
           <div className={styles.panel} role="region" aria-label="Decision" tabIndex={0}>
-            {errorNotice}
-            {view.status === "pending_approval" ? decisionBar : outcomeNotice}
+            {/* Same width and side padding as the draft, so the two line up. */}
+            <div className={styles.panelInner}>
+              {errorNotice}
+              {view.status === "pending_approval" ? decisionBar : outcomeNotice}
+            </div>
           </div>,
           barSlot,
         )}
