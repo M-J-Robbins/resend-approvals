@@ -218,10 +218,7 @@ export function DraftActions({
           onSubmit={approve}
           title="Approve and send this email?"
           description={
-            <p>
-              Each recipient gets their own copy of this email through Resend as soon as you
-              confirm. Sending can&apos;t be undone.
-            </p>
+            <p>This sends as soon as you confirm. It can&apos;t be undone.</p>
           }
           footer={
             <>
