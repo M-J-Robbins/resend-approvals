@@ -29,6 +29,9 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
     "A reviewer credential was used on an agent endpoint (code `wrong_credential_type`).",
   );
   const notFound = error("No draft (or revision) with that id (code `not_found`).");
+  const serverError = error(
+    "Unexpected server error (code `internal_error`). Retry once after a few seconds; for a create, list drafts first in case it succeeded.",
+  );
   const invalid = error(
     "Invalid body or query (code `validation_error`, with an `issues` array or a `hint`) or invalid JSON (`invalid_json`).",
   );
@@ -69,7 +72,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
       description:
         "Agents prepare email drafts; a human reviews the exact recipient list and content and approves or rejects; approved emails are sent through Resend. " +
         `A draft has ONE recipients list (up to ${maxRecipients}); each recipient receives an individual copy of the same email. ` +
-        "Agents can create, revise and submit drafts, read their status and send progress, and page through recipients. Agents can NOT approve, reject, send or resume a failed send: those need a human reviewer credential and the key you use here is refused on those routes. " +
+        "Agents can create, revise and submit drafts, read their status and send progress, and page through recipients. Agents can NOT approve, reject, send or resume a failed send: those need a human reviewer credential, and the key you use here is refused on those routes with 403 `agent_cannot_review`. " +
         "Changing a draft creates a new revision, and a new revision needs a new approval. " +
         "Sending is asynchronous and happens in batches after approval; `sent` means accepted by Resend, not delivered. " +
         "Start with " +
@@ -79,6 +82,37 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
     servers: [{ url: origin }],
     security: [{ agentKey: [] }],
     paths: {
+      "/api/agent": {
+        get: {
+          operationId: "discover",
+          summary: "Service discovery (no auth)",
+          description: "Links to these docs and a summary of what an agent can and cannot do.",
+          security: [],
+          responses: {
+            "200": {
+              description: "Discovery document.",
+              content: json({
+                type: "object",
+                properties: {
+                  service: { type: "string" },
+                  summary: { type: "string" },
+                  docs: {
+                    type: "object",
+                    properties: {
+                      skill: { type: "string" },
+                      openapi: { type: "string" },
+                      llms_txt: { type: "string" },
+                    },
+                  },
+                  auth: { type: "string" },
+                  you_can: { type: "array", items: { type: "string" } },
+                  you_cannot: { type: "array", items: { type: "string" } },
+                },
+              }),
+            },
+          },
+        },
+      },
       "/api/agent/drafts": {
         post: {
           operationId: "createDraft",
@@ -91,6 +125,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
             "400": contentInvalid,
             "401": unauthorized,
             "403": forbidden,
+            "500": serverError,
           },
         },
         get: {
@@ -120,6 +155,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
             "400": invalid,
             "401": unauthorized,
             "403": forbidden,
+            "500": serverError,
           },
         },
       },
@@ -134,6 +170,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
             "200": draftOk("The draft."),
             "401": unauthorized,
             "403": forbidden,
+            "500": serverError,
             "404": notFound,
           },
         },
@@ -149,6 +186,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
             "400": contentInvalid,
             "401": unauthorized,
             "403": forbidden,
+            "500": serverError,
             "404": notFound,
             "409": error("`draft_locked` or `no_changes`."),
           },
@@ -167,6 +205,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
             "400": invalid,
             "401": unauthorized,
             "403": forbidden,
+            "500": serverError,
             "404": notFound,
             "409": error(
               "`revision_changed` (GET the draft and use its current revision id) or `invalid_state` (e.g. a rejected draft must be revised first).",
@@ -221,9 +260,12 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
               description: "One page of recipients.",
               content: json(ref("RecipientPage")),
             },
-            "400": invalid,
+            "400": error(
+              "`validation_error`: an invalid query parameter (with `issues`), or a `status` filter on a draft that has not been approved yet (with a `hint`).",
+            ),
             "401": unauthorized,
             "403": forbidden,
+            "500": serverError,
             "404": notFound,
           },
         },
@@ -419,7 +461,10 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
           type: "object",
           required: ["action", "description"],
           properties: {
-            action: { type: "string" },
+            action: {
+              type: "string",
+              enum: ["submit", "revise", "poll", "list_recipients", "none"],
+            },
             description: { type: "string" },
             method: { type: "string" },
             path: { type: "string" },
@@ -434,7 +479,11 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
               type: "object",
               required: ["code", "message"],
               properties: {
-                code: { type: "string" },
+                code: {
+                  type: "string",
+                  description:
+                    "Stable error code. On agent endpoints: unauthorized, wrong_credential_type, invalid_json, validation_error, no_recipients, too_many_recipients, invalid_recipients, not_found, draft_locked, no_changes, revision_changed, invalid_state, internal_error. The agent key on any human review endpoint (not described here) gets 403 agent_cannot_review.",
+                },
                 message: { type: "string" },
                 hint: { type: "string", description: "What to do next." },
                 issues: {
@@ -456,7 +505,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
                     type: "object",
                     properties: {
                       index: { type: "integer", description: "Position in the array you sent." },
-                      value: { type: "string" },
+                      value: { type: "string", description: "The address as sent, cut at 320 characters." },
                     },
                   },
                 },
