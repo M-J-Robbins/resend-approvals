@@ -86,9 +86,6 @@ export function EmailPreview({ html, subject }: { html: string; subject: string 
               </button>
             ))}
           </div>
-          <p className={styles.caption}>
-            Sandboxed: scripts, pop-ups and forms are blocked. Remote images still load.
-          </p>
         </div>
         <div className={styles.stage} data-viewport={viewport}>
           <iframe
