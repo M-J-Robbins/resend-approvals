@@ -276,12 +276,6 @@ export async function listRecipients(draftId: string, query: RecipientsQuery) {
   const rows = (await db.execute(
     sql`${filtered} order by idx offset ${query.offset} limit ${query.limit}`,
   )) as unknown as { email: string; chunk_status: string | null; resend_email_id: string | null }[];
-  const domains = (await db.execute(sql`
-    select split_part(e.email, '@', 2) as domain, count(*)::int as count
-    from revisions rv cross join lateral unnest(rv.recipients) as e(email)
-    where rv.id = ${revisionId}
-    group by 1 order by 2 desc, 1 limit 5`)) as unknown as { domain: string; count: number }[];
-
   const items: RecipientItem[] = rows.map((r) => ({
     email: r.email,
     status: !send
@@ -301,7 +295,6 @@ export async function listRecipients(draftId: string, query: RecipientsQuery) {
     offset: query.offset,
     limit: query.limit,
     items,
-    top_domains: domains.map((d) => ({ domain: d.domain, count: d.count })),
   };
 }
 

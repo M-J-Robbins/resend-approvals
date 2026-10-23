@@ -43,7 +43,6 @@ export function Recipients({
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [page, setPage] = useState<RecipientPage | null>(null);
-  const [domains, setDomains] = useState<RecipientPage["top_domains"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef<AbortController | null>(null);
@@ -52,6 +51,7 @@ export function Recipients({
   // Mirrors the native popover's state, so statuses only refresh while it is visible.
   const [open, setOpen] = useState(false);
   const popoverId = `${searchId}-popover`;
+  const hasPage = useRef(false);
   const userAction = useRef(false);
 
   // Debounce typing; a new search starts at the first page.
@@ -76,7 +76,7 @@ export function Recipients({
           controller.signal,
         );
         setPage(next);
-        setDomains((d) => d ?? next.top_domains);
+        hasPage.current = true;
         setError(null);
         if (userAction.current) {
           userAction.current = false;
@@ -92,10 +92,13 @@ export function Recipients({
     [draftId, revision.id, offset, search, announce],
   );
 
+  // Nothing is fetched until the reviewer opens the list. Reopening (or a
+  // new page or search) keeps the last page on screen while it refreshes.
   useEffect(() => {
-    void load(false);
+    if (!open) return;
+    void load(hasPage.current);
     return () => inFlight.current?.abort();
-  }, [load]);
+  }, [load, open]);
 
   useEffect(() => {
     if (refreshKey && open) void load(true);
@@ -136,22 +139,6 @@ export function Recipients({
         </div>
       </dl>
 
-      {domains && domains.length > 0 && (
-        <div className={styles.domains}>
-          <h4 className={styles.subheading}>
-            Top {domains.length === 1 ? "domain" : `${domains.length} domains`}
-          </h4>
-          <ol className={styles.domainList}>
-            {domains.map((d) => (
-              <li key={d.domain} className={styles.domain}>
-                <span className={styles.domainName}>{d.domain}</span>
-                <span className={styles.domainCount}>{plural(d.count, "recipient")}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-
       <Button popoverTarget={popoverId} className={styles.open}>
         {revision.recipient_count === 1
           ? "View recipient"
@@ -168,11 +155,7 @@ export function Recipients({
         onToggle={(e) => {
           const isOpen = e.newState === "open";
           setOpen(isOpen);
-          if (isOpen) {
-            searchRef.current?.focus();
-            // Statuses may have moved on while it was closed.
-            void load(true);
-          }
+          if (isOpen) searchRef.current?.focus();
         }}
       >
         <div className={styles.popoverHead}>

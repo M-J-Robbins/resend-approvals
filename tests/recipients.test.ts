@@ -142,7 +142,7 @@ describe("revising recipients", () => {
 });
 
 describe("paging through recipients", () => {
-  it("pages in sorted order, searches case-insensitively and counts domains", async () => {
+  it("pages in sorted order and searches case-insensitively", async () => {
     const list = [...addresses(117, "pgtest"), "Person@Other.example", "x@third.example"];
     const draft = await newDraft({ recipients: list });
 
@@ -164,12 +164,6 @@ describe("paging through recipients", () => {
     const search = await listRecipients(draft.id, page(0, 50, { q: "OTHER.EX" }));
     expect(search.total).toBe(1);
     expect(search.items[0].email).toBe("person@other.example");
-
-    expect(first.top_domains).toEqual([
-      { domain: "example.com", count: 117 },
-      { domain: "other.example", count: 1 },
-      { domain: "third.example", count: 1 },
-    ]);
   });
 
   it("rejects a status filter before approval", async () => {

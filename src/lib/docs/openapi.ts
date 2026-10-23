@@ -447,14 +447,6 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
                 },
               },
             },
-            top_domains: {
-              type: "array",
-              description: "The 5 most common domains in the whole list.",
-              items: {
-                type: "object",
-                properties: { domain: { type: "string" }, count: { type: "integer" } },
-              },
-            },
           },
         },
         NextAction: {

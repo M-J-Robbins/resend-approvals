@@ -101,15 +101,13 @@ The response:
 {
   "revision_id": "rev_...", "recipient_count": 4812,
   "total": 4812, "offset": 0, "limit": 500,
-  "items": [{ "email": "ada@example.com", "status": "sent", "resend_email_id": "4ef9a417-..." }],
-  "top_domains": [{ "domain": "example.com", "count": 3120 }]
+  "items": [{ "email": "ada@example.com", "status": "sent", "resend_email_id": "4ef9a417-..." }]
 }
 §§§
 
 - §revision_id§: the revision these recipients belong to.
 - §recipient_count§: all recipients of that revision. §total§ is how many match §q§ and §status§, so page until §offset + items.length >= total§.
 - §items[].status§ and §items[].resend_email_id§ are null before approval. After approval §status§ is §pending§ (not yet attempted, or in flight), §sent§ (§resend_email_id§ is set) or §failed§.
-- §top_domains§: the 5 most common domains in the whole list, regardless of §q§ and §status§.
 
 To list only the recipients that failed: §?status=failed§.
 
