@@ -181,43 +181,61 @@ export function DraftActions({
 
   const count = view.revision.recipient_count;
 
+  // Pending, rejected and failed drafts keep their decision or outcome (and
+  // any error from acting on it) in the panel pinned to the bottom of the pane.
+  const pinned =
+    view.status === "pending_approval" || view.status === "rejected" || view.status === "failed";
+
+  const errorNotice = error && (
+    <ActionError
+      error={error}
+      onReload={() => {
+        setError(null);
+        onReload();
+      }}
+    />
+  );
+
+  const outcomeNotice = (
+    <div ref={outcome} tabIndex={-1} className={styles.outcome}>
+      <Outcome view={view} now={now} pending={pending} note={resumeNote} onResume={resume} />
+    </div>
+  );
+
+  const decisionBar = view.status === "pending_approval" && (
+    <section className={styles.bar} aria-labelledby="actions-heading">
+      <div className={styles.barCopy}>
+        <h3 id="actions-heading" className={styles.barHeading}>
+          Your decision
+        </h3>
+        <p className={styles.barText}>
+          Approving sends {count === 1 ? "this email to 1 recipient" : `an individual copy of this email to each of ${formatCount(count)} recipients`} through Resend straight away.
+        </p>
+      </div>
+      <div className={styles.buttons}>
+        <Button ref={approveBtn} variant="primary" disabled={!decidable || pending !== null} onClick={() => open("approve")}>
+          Approve and send…
+        </Button>
+        <Button ref={rejectBtn} variant="danger" disabled={!decidable || pending !== null} onClick={() => open("reject")}>
+          Reject…
+        </Button>
+      </div>
+    </section>
+  );
+
   return (
     <>
-      {error && (
-        <ActionError
-          error={error}
-          onReload={() => {
-            setError(null);
-            onReload();
-          }}
-        />
-      )}
+      {!pinned && errorNotice}
+      {!pinned && outcomeNotice}
 
-      <div ref={outcome} tabIndex={-1} className={styles.outcome}>
-        <Outcome view={view} now={now} pending={pending} note={resumeNote} onResume={resume} />
-      </div>
-
-      {view.status === "pending_approval" &&
+      {pinned &&
         barSlot &&
         createPortal(
-          <section className={styles.bar} aria-labelledby="actions-heading">
-            <div className={styles.barCopy}>
-              <h3 id="actions-heading" className={styles.barHeading}>
-                Your decision
-              </h3>
-              <p className={styles.barText}>
-                Approving sends {count === 1 ? "this email to 1 recipient" : `an individual copy of this email to each of ${formatCount(count)} recipients`} through Resend straight away.
-              </p>
-            </div>
-            <div className={styles.buttons}>
-              <Button ref={approveBtn} variant="primary" disabled={!decidable || pending !== null} onClick={() => open("approve")}>
-                Approve and send…
-              </Button>
-              <Button ref={rejectBtn} variant="danger" disabled={!decidable || pending !== null} onClick={() => open("reject")}>
-                Reject…
-              </Button>
-            </div>
-          </section>,
+          // Focusable so its contents can be scrolled with the keyboard when it overflows.
+          <div className={styles.panel} role="region" aria-label="Decision" tabIndex={0}>
+            {errorNotice}
+            {view.status === "pending_approval" ? decisionBar : outcomeNotice}
+          </div>,
           barSlot,
         )}
 

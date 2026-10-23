@@ -12,17 +12,28 @@
     display: none;
 }
 
-/* Pinned to the bottom of the detail pane by its slot (see DraftDetail.module.css). */
+/*
+ * The panel pinned to the bottom of the detail pane by its slot (see
+ * DraftDetail.module.css). A failed send can list many batches, so it scrolls
+ * inside rather than covering the whole pane.
+ */
+.panel {
+    display: grid;
+    gap: calc(var(--spacing) * 3);
+    max-height: 50dvh;
+    overflow-y: auto;
+    padding: calc(var(--spacing) * 4) calc(var(--spacing) * 6);
+    border-top: var(--border-width) solid var(--border-control);
+    background: var(--bg-base);
+    box-shadow: var(--shadow-lg);
+}
+
 .bar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: calc(var(--spacing) * 3) calc(var(--spacing) * 6);
-    padding: calc(var(--spacing) * 4) calc(var(--spacing) * 6);
-    border-top: var(--border-width) solid var(--border-control);
-    background: var(--bg-base);
-    box-shadow: var(--shadow-lg);
 }
 
 .barCopy {
@@ -117,7 +128,7 @@
 }
 
 @media (max-width: 48rem) {
-    .bar {
+    .panel {
         padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
     }
 }
