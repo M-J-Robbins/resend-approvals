@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api, ApiError, isConflict, type DraftView } from "@/lib/client/api";
 import { formatCount, parseCount, plural, relativeTime, shortHash } from "@/lib/client/format";
 import { useAnnounce } from "./Announcer";
@@ -25,6 +26,7 @@ export function DraftActions({
   onUpdated,
   onReload,
   onPause,
+  barSlot,
 }: {
   view: DraftView;
   /** A newer revision exists; the shown one can no longer be decided. */
@@ -35,6 +37,11 @@ export function DraftActions({
   onReload: () => void;
   /** Pauses background refresh while a dialog is open or a request runs. */
   onPause: (paused: boolean) => void;
+  /**
+   * Where the decision bar goes: the end of the draft, so it can stick to the
+   * bottom of the pane and still come last in reading and focus order.
+   */
+  barSlot: HTMLElement | null;
 }) {
   const announce = useAnnounce();
   const [dialog, setDialog] = useState<"approve" | "reject" | null>(null);
@@ -190,24 +197,29 @@ export function DraftActions({
         <Outcome view={view} now={now} pending={pending} note={resumeNote} onResume={resume} />
       </div>
 
-      {view.status === "pending_approval" && (
-        <section className={styles.bar} aria-labelledby="actions-heading">
-          <h3 id="actions-heading" className={styles.barHeading}>
-            Your decision
-          </h3>
-          <p className={styles.barText}>
-            Approving sends {count === 1 ? "this email to 1 recipient" : `an individual copy of this email to each of ${formatCount(count)} recipients`} through Resend straight away.
-          </p>
-          <div className={styles.buttons}>
-            <Button ref={approveBtn} variant="primary" disabled={!decidable || pending !== null} onClick={() => open("approve")}>
-              Approve and send…
-            </Button>
-            <Button ref={rejectBtn} variant="danger" disabled={!decidable || pending !== null} onClick={() => open("reject")}>
-              Reject…
-            </Button>
-          </div>
-        </section>
-      )}
+      {view.status === "pending_approval" &&
+        barSlot &&
+        createPortal(
+          <section className={styles.bar} aria-labelledby="actions-heading">
+            <div className={styles.barCopy}>
+              <h3 id="actions-heading" className={styles.barHeading}>
+                Your decision
+              </h3>
+              <p className={styles.barText}>
+                Approving sends {count === 1 ? "this email to 1 recipient" : `an individual copy of this email to each of ${formatCount(count)} recipients`} through Resend straight away.
+              </p>
+            </div>
+            <div className={styles.buttons}>
+              <Button ref={approveBtn} variant="primary" disabled={!decidable || pending !== null} onClick={() => open("approve")}>
+                Approve and send…
+              </Button>
+              <Button ref={rejectBtn} variant="danger" disabled={!decidable || pending !== null} onClick={() => open("reject")}>
+                Reject…
+              </Button>
+            </div>
+          </section>,
+          barSlot,
+        )}
 
       {target && (
         <Dialog

@@ -7,6 +7,22 @@
     padding: calc(var(--spacing) * 6) calc(var(--spacing) * 6) calc(var(--spacing) * 16);
 }
 
+/*
+ * The decision bar's slot: last in the draft, stuck to the bottom of the
+ * viewport while the draft scrolls, and edge to edge across the pane (the
+ * negative margins cancel .detail's padding). Empty once a draft is decided.
+ */
+.barSlot {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin: 0 calc(var(--spacing) * -6) calc(var(--spacing) * -16);
+}
+
+.barSlot:empty {
+    display: none;
+}
+
 /* Back link only matters in the single-column layout. */
 .back {
     display: none;
@@ -149,6 +165,10 @@
 
     .back {
         display: inline-flex;
+    }
+
+    .barSlot {
+        margin: 0 calc(var(--spacing) * -4) calc(var(--spacing) * -12);
     }
 
     .subject {

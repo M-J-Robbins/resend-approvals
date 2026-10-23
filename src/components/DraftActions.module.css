@@ -12,14 +12,24 @@
     display: none;
 }
 
+/* Pinned to the bottom of the detail pane by its slot (see DraftDetail.module.css). */
 .bar {
-    display: grid;
-    gap: calc(var(--spacing) * 3);
-    padding: calc(var(--spacing) * 4);
-    border: var(--border-width) solid var(--border-control);
-    border-radius: var(--radius-xl);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(var(--spacing) * 3) calc(var(--spacing) * 6);
+    padding: calc(var(--spacing) * 4) calc(var(--spacing) * 6);
+    border-top: var(--border-width) solid var(--border-control);
     background: var(--bg-base);
-    box-shadow: var(--shadow-xs);
+    box-shadow: var(--shadow-lg);
+}
+
+.barCopy {
+    display: grid;
+    gap: calc(var(--spacing) * 1);
+    flex: 1 1 calc(var(--spacing) * 64);
+    min-width: 0;
 }
 
 .barHeading {
@@ -104,4 +114,10 @@
     border-radius: var(--radius-lg);
     background: var(--bg-base);
     font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 48rem) {
+    .bar {
+        padding: calc(var(--spacing) * 3) calc(var(--spacing) * 4);
+    }
 }

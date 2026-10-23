@@ -43,6 +43,8 @@ export function DraftDetail({
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [now, setNow] = useState(() => Date.now());
   const [paused, setPaused] = useState(false);
+  // The decision bar is rendered into this element (last in the draft) via a portal.
+  const [barSlot, setBarSlot] = useState<HTMLDivElement | null>(null);
   const viewRef = useRef<DraftView | null>(null);
   useEffect(() => {
     viewRef.current = view;
@@ -190,6 +192,7 @@ export function DraftDetail({
         onUpdated={onUpdated}
         onReload={() => void fetchDraft("reload")}
         onPause={setPaused}
+        barSlot={barSlot}
       />
 
       <Recipients key={revision.id} draftId={view.id} revision={revision} refreshKey={view.send?.updated_at} />
@@ -199,6 +202,8 @@ export function DraftDetail({
       <ReviewOutcome view={view} />
 
       <RevisionHistory view={view} now={now} />
+
+      <div ref={setBarSlot} className={styles.barSlot} />
     </article>
   );
 }
