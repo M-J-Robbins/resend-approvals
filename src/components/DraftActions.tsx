@@ -202,25 +202,32 @@ export function DraftActions({
     </div>
   );
 
+  // Same shape as the outcome notices: icon, heading, text, then the buttons.
   const decisionBar = view.status === "pending_approval" && (
-    <section className={styles.bar} aria-labelledby="actions-heading">
-      <div className={styles.barCopy}>
-        <h3 id="actions-heading" className={styles.barHeading}>
-          Your decision
-        </h3>
-        <p className={styles.barText}>
-          Approving sends {count === 1 ? "this email to 1 recipient" : `an individual copy of this email to each of ${formatCount(count)} recipients`} through Resend straight away.
-        </p>
-      </div>
-      <div className={styles.buttons}>
-        <Button ref={approveBtn} variant="primary" disabled={!decidable || pending !== null} onClick={() => open("approve")}>
-          Approve and send…
-        </Button>
-        <Button ref={rejectBtn} variant="danger" disabled={!decidable || pending !== null} onClick={() => open("reject")}>
-          Reject…
-        </Button>
-      </div>
-    </section>
+    <Notice
+      tone="warning"
+      title="Your decision"
+      actions={
+        <>
+          <Button ref={approveBtn} variant="primary" disabled={!decidable || pending !== null} onClick={() => open("approve")}>
+            Approve and send…
+          </Button>
+          {/* Secondary, not danger: red text on a tinted notice is under 4.5:1 in light
+              mode. The Reject dialog's confirm button keeps the danger style. */}
+          <Button ref={rejectBtn} variant="secondary" disabled={!decidable || pending !== null} onClick={() => open("reject")}>
+            Reject…
+          </Button>
+        </>
+      }
+    >
+      <p>
+        This draft is waiting for your review. Approving sends{" "}
+        {count === 1
+          ? "this email to 1 recipient"
+          : `an individual copy of this email to each of ${formatCount(count)} recipients`}{" "}
+        through Resend straight away.
+      </p>
+    </Notice>
   );
 
   return (

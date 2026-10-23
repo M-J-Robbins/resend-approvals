@@ -28,37 +28,6 @@
     box-shadow: var(--shadow-lg);
 }
 
-.bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: calc(var(--spacing) * 3) calc(var(--spacing) * 6);
-}
-
-.barCopy {
-    display: grid;
-    gap: calc(var(--spacing) * 1);
-    flex: 1 1 calc(var(--spacing) * 64);
-    min-width: 0;
-}
-
-.barHeading {
-    font-size: var(--text-sm);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-emphasis);
-}
-
-.barText {
-    color: var(--text-default);
-}
-
-.buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: calc(var(--spacing) * 2);
-}
-
 .summary {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
