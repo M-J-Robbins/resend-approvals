@@ -1,3 +1,5 @@
+import { DEFAULT_MAX_RECIPIENTS } from "./limits";
+
 /**
  * Markdown is written with § standing in for a backtick, so this file doesn't
  * need a wall of escapes. It is swapped back when the text is built.
@@ -6,6 +8,11 @@ export function buildSkillMd(origin: string, maxRecipients: number, sandboxRecip
   const owner = sandboxRecipient
     ? `the service owner's address, **${sandboxRecipient}**,`
     : "the service owner's address (ask the user which one it is),";
+
+  const capNote =
+    maxRecipients < DEFAULT_MAX_RECIPIENTS
+      ? `\n\nThis deployment caps drafts at ${maxRecipients} recipients to protect the shared testing sender's daily quota. The service itself supports up to ${DEFAULT_MAX_RECIPIENTS.toLocaleString("en")}.`
+      : "";
 
   const md = `---
 name: email-approvals
@@ -206,7 +213,7 @@ Every error is JSON: §{"error":{"code","message","hint"}}§. Read §hint§; it 
 
 ## Delivery limits in this deployment
 
-Emails are sent from Resend's shared testing sender, which only delivers to ${owner} and to Resend's test addresses such as §delivered@resend.dev§ (verified to work with this sender; §delivered+anything@resend.dev§ also works). **When testing, use only those addresses.** Any other address fails, and because a batch either fully succeeds or fully fails, one such address fails its whole batch of up to 100 (status §failed§, Resend's error in §send.errors§). Test sends count towards the account's daily sending quota, which is low, so test with a handful of recipients, not thousands.
+Emails are sent from Resend's shared testing sender, which only delivers to ${owner} and to Resend's test addresses such as §delivered@resend.dev§ (verified to work with this sender; §delivered+anything@resend.dev§ also works). **When testing, use only those addresses.** Any other address fails, and because a batch either fully succeeds or fully fails, one such address fails its whole batch of up to 100 (status §failed§, Resend's error in §send.errors§). Test sends count towards the account's daily sending quota, which is low, so test with a handful of recipients, not thousands.${capNote}
 `;
   return md.replaceAll("§", "`");
 }

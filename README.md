@@ -6,6 +6,8 @@ An agent discovers the API, creates and revises a draft, submits it for approval
 
 A draft is one email for many recipients: one `recipients` list (up to 5,000 addresses), one subject, one HTML body. Every recipient gets their own individual copy, so there is no shared To, cc or bcc. A single transactional email is a list of one.
 
+The live demo caps drafts at 10 recipients (`MAX_RECIPIENTS`) to protect the free Resend quota. The default is 5,000.
+
 Stack: TypeScript, Next.js (App Router) on Vercel, Neon Postgres, Drizzle, Vitest.
 
 ## For agents
