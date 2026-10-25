@@ -23,6 +23,13 @@ export const notFound = (what: string, id: string) =>
 export const conflict = (code: string, message: string, hint?: string) =>
   new AppError(409, code, message, hint);
 
+/** A ZodError as a validation_error that also says what a valid request looks like. */
+export function validationError(e: ZodError, hint: string): AppError {
+  return new AppError(400, "validation_error", "The request is invalid.", hint, {
+    issues: e.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
+  });
+}
+
 export function errorResponse(e: unknown): Response {
   if (e instanceof AppError) {
     return Response.json(
@@ -31,18 +38,8 @@ export function errorResponse(e: unknown): Response {
     );
   }
   if (e instanceof ZodError) {
-    return Response.json(
-      {
-        error: {
-          code: "validation_error",
-          message: "The request body is invalid.",
-          issues: e.issues.map((i) => ({
-            path: i.path.join("."),
-            message: i.message,
-          })),
-        },
-      },
-      { status: 400 },
+    return errorResponse(
+      validationError(e, "Fix each problem listed in `issues` (`path` names the field) and send the request again."),
     );
   }
   console.error(e);

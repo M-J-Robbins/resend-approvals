@@ -15,9 +15,11 @@ export async function guard(fn: () => Promise<Response>): Promise<Response> {
   }
 }
 
+/** An empty body reads as {}, so a missing field gets a validation_error that names it. */
 export async function readJson(req: Request): Promise<unknown> {
   try {
-    return await req.json();
+    const text = await req.text();
+    return text.trim() === "" ? {} : JSON.parse(text);
   } catch {
     throw new AppError(
       400,
@@ -28,14 +30,19 @@ export async function readJson(req: Request): Promise<unknown> {
   }
 }
 
-/** Agent responses always carry next_actions. */
+/**
+ * Agent responses always carry next_actions, and a review_url the agent can
+ * hand to the human.
+ */
 export function agentJson(
+  req: Request,
   view: DraftView,
   status = 200,
   headers?: HeadersInit,
 ): Response {
+  const review_url = `${new URL(req.url).origin}/?draft=${encodeURIComponent(view.id)}`;
   return Response.json(
-    { ...view, next_actions: agentNextActions(view) },
+    { ...view, review_url, next_actions: agentNextActions(view) },
     { status, headers },
   );
 }

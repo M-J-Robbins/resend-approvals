@@ -6,6 +6,8 @@ An agent discovers the API, creates and revises a draft, submits it for approval
 
 A draft is one email for many recipients: one `recipients` list (up to 5,000 addresses), one subject, one HTML body. Every recipient gets their own individual copy, so there is no shared To, cc or bcc. A single transactional email is a list of one.
 
+The live demo caps drafts at 10 recipients (`MAX_RECIPIENTS`) to protect the free Resend quota. The default is 5,000.
+
 Stack: TypeScript, Next.js (App Router) on Vercel, Neon Postgres, Drizzle, Vitest.
 
 ## For agents
@@ -24,10 +26,10 @@ Agents authenticate with `Authorization: Bearer <AGENT_API_KEY>`. The flow:
 1. `POST /api/agent/drafts` with `{ "recipients": [...], "subject": "...", "html": "..." }`
 2. `PUT /api/agent/drafts/{id}` to revise (each change is a new revision)
 3. `POST /api/agent/drafts/{id}/submit` with the current `revision_id`
-4. Poll `GET /api/agent/drafts/{id}`: `status`, `review`, `send` progress and `next_actions`
+4. Poll `GET /api/agent/drafts/{id}`: `status`, `review`, `send` progress and `next_actions`. Each draft response also has a `review_url` the agent hands to the human
 5. `GET /api/agent/drafts/{id}/recipients` to page through the list and per-recipient send status
 
-Every error has a stable `code`, a plain-English `message` and a `hint`. Every draft response has `next_actions`, so an agent never has to guess what to do next.
+Every error has a stable `code`, a plain-English `message` and a `hint` that describes a valid request. Agents should send to `delivered@resend.dev` on the demo deployment (see [Running locally](#running-locally)). Every draft response has `next_actions`, so an agent never has to guess what to do next.
 
 ## For humans
 
@@ -102,7 +104,7 @@ npm run dev                  # http://localhost:3000
 
 `AGENT_API_KEY` and `REVIEWER_TOKEN` must be different secrets of at least 32 characters (`openssl rand -hex 32`).
 
-Without a verified domain, the sender is `onboarding@resend.dev`. Resend then only delivers to the email address of the account that owns the API key, and to test addresses such as `delivered@resend.dev`. Any other recipient fails its batch with Resend's error. Set `SANDBOX_RECIPIENT` to have `/SKILL.md` tell agents which address to test with.
+Without a verified domain, the sender is `onboarding@resend.dev`. Resend then only delivers to the email address of the account that owns the API key, and to test addresses such as `delivered@resend.dev`. Any other recipient fails its batch with Resend's error, so `/SKILL.md` tells agents to send to `delivered@resend.dev`.
 
 `drizzle/README.md` covers a database that was created with `db:push` before migrations existed.
 

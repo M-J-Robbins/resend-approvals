@@ -304,7 +304,7 @@ export function agentNextActions(v: DraftView): NextAction[] {
   const revise: NextAction = {
     action: "revise",
     description:
-      "Change any of recipients, subject, html (omitted fields are kept; recipients replaces the whole list). Creates a new revision that needs a new approval.",
+      'Send a JSON body with any of recipients, subject and html, e.g. {"subject": "New subject"}. Omitted fields are kept; recipients and html replace the current value in full, so send the complete HTML. Creates a new revision that needs a new approval.',
     method: "PUT",
     path,
   };
@@ -339,7 +339,7 @@ export function agentNextActions(v: DraftView): NextAction[] {
     case "pending_approval":
       return [
         poll("Waiting for a human reviewer. Poll this endpoint; do not resubmit."),
-        { ...revise, description: `${revise.description} Revising withdraws the pending approval request.` },
+        { ...revise, description: `${revise.description} Revising withdraws the pending approval request and returns the draft to "draft", so submit the new revision afterwards.` },
       ];
     case "approved":
       return [

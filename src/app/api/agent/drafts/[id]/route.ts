@@ -9,7 +9,7 @@ export function GET(req: Request, ctx: IdContext) {
   return guard(async () => {
     requireAgent(req);
     const { id } = await ctx.params;
-    return agentJson(await getDraftView(id));
+    return agentJson(req, await getDraftView(id));
   });
 }
 
@@ -19,6 +19,6 @@ export function PUT(req: Request, ctx: IdContext) {
     requireAgent(req);
     const { id } = await ctx.params;
     const patch = parseReviseDraft(await readJson(req));
-    return agentJson(await reviseDraft(id, patch));
+    return agentJson(req, await reviseDraft(id, patch));
   });
 }
