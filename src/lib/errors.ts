@@ -23,11 +23,18 @@ export const notFound = (what: string, id: string) =>
 export const conflict = (code: string, message: string, hint?: string) =>
   new AppError(409, code, message, hint);
 
-/** A ZodError as a validation_error that also says what a valid request looks like. */
+/**
+ * A ZodError as a validation_error that also says what a valid request looks
+ * like. The message repeats the issues in prose because some agents read only
+ * `message`.
+ */
 export function validationError(e: ZodError, hint: string): AppError {
-  return new AppError(400, "validation_error", "The request is invalid.", hint, {
-    issues: e.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
-  });
+  const issues = e.issues.map((i) => ({ path: i.path.join("."), message: i.message }));
+  const summary = issues
+    .map((i) => (i.path ? `${i.path}: ${i.message}` : i.message))
+    .map((m) => (/[.!?]$/.test(m) ? m : `${m}.`))
+    .join(" ");
+  return new AppError(400, "validation_error", `The request is invalid. ${summary}`, hint, { issues });
 }
 
 export function errorResponse(e: unknown): Response {

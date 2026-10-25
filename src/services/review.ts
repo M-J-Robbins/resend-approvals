@@ -56,6 +56,9 @@ export async function approveDraft(
         "Reload the draft and approve exactly what is shown.",
       );
     }
+    // The hash already covers the recipients, so this looks redundant. It is
+    // the check a human can do: above 100 recipients the reviewer types the
+    // count they saw, and a mismatch means they confirmed a different list.
     if (input.recipientCount !== revision.recipientCount) {
       throw conflict(
         "recipient_count_mismatch",
@@ -109,7 +112,9 @@ export async function approveDraft(
       .values({ revisionId: input.revisionId, chunkSize, chunkCount })
       .onConflictDoNothing()
       .returning({ id: sends.id });
-    // Only the request that created the job creates its chunks.
+    // The conditional UPDATE above already lets only one request get here. The
+    // unique revision_id is the backstop in case that ever stops being true:
+    // only the request that created the job creates its chunks.
     if (!job) return;
 
     await tx.execute(sql`
@@ -241,6 +246,8 @@ export async function processSends(
       await failPendingChunks(revision.id, `Not attempted: ${result.message}`);
       break;
     }
+    // Still rate limited after the retries: every other chunk would get a 429
+    // too, so stop. The chunk is pending again; a resume picks it up.
     if (!result.ok && result.outcome === "rate_limited") break;
   }
 
@@ -256,6 +263,7 @@ async function claimChunk(revisionId: string): Promise<SendChunkRow | null> {
     update send_chunks
     set status = 'sending',
         attempts = attempts + 1,
+        -- The 23h clock starts when Resend first sees the key, not when it was created.
         key_first_used_at = coalesce(key_first_used_at, now()),
         updated_at = now()
     where id = (

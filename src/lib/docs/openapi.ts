@@ -132,7 +132,8 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
         get: {
           operationId: "listDrafts",
           summary: "List drafts",
-          description: "Most recently updated first (up to 50).",
+          description:
+            "Most recently updated first (up to 50). Every draft in the service, not only yours: there is one shared agent key and drafts don't record who made them. Keep the ids that create returned to track your own.",
           parameters: [
             {
               name: "status",
@@ -419,6 +420,18 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
               format: "uri",
               description: "Opens this draft in the human review UI. Give it to the user so they can review it.",
             },
+            recipients_change: {
+              type: ["object", "null"],
+              description:
+                "Only on revise responses: how the recipient list changed compared with the revision this one replaced, or null if no new revision was made. `warning` is set when recipients were removed; `recipients` replaces the whole list, so check it before submitting.",
+              properties: {
+                previous_count: { type: "integer" },
+                count: { type: "integer" },
+                added: { type: "integer" },
+                removed: { type: "integer" },
+                warning: { type: "string" },
+              },
+            },
             next_actions: { type: "array", items: ref("NextAction") },
           },
         },
@@ -431,6 +444,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
             subject: { type: "string" },
             recipient_count: { type: "integer" },
             updated_at: { type: "string", format: "date-time" },
+            review_url: { type: "string", format: "uri", description: "Opens this draft in the human review UI." },
           },
         },
         RecipientPage: {

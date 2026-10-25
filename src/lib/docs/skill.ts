@@ -60,6 +60,17 @@ curl -sS -X PUT ${origin}/api/agent/drafts/DRAFT_ID \\
   -d '{"subject":"Hello again"}'
 §§§
 
+   **Adding a recipient** is the revise most often done wrong. Sending only the new address replaces the list with that one address. Take the current list from §revision.recipients_preview§ (all of it when §recipient_count§ is 10 or fewer; otherwise page §/recipients§), append the new address, and send the whole list:
+
+§§§bash
+curl -sS -X PUT ${origin}/api/agent/drafts/DRAFT_ID \
+  -H "Authorization: Bearer $EMAIL_APPROVALS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"recipients":["delivered+ada@resend.dev","delivered+grace@resend.dev","delivered+linus@resend.dev"]}'
+§§§
+
+   A revise response also has §recipients_change§: §{"previous_count","count","added","removed"}§ compared with the revision it replaced, or null if nothing changed. If recipients were removed it has a §warning§, which the §submit§ action repeats. Check it before you submit: if the removal wasn't intended, revise again with the full list.
+
 3. **Submit** the current revision for approval. Use the §revision.id§ from your latest response (the §submit§ entry in §next_actions§ has the exact body). Submitting a revision that is already pending is a harmless no-op.
 
 §§§bash
@@ -145,7 +156,7 @@ Create, revise, submit and get all return the same draft object:
 
 Every draft response includes §next_actions§ listing what you can do next, with method, path (relative to the base URL) and, for §submit§, the exact body. The §action§ names are §submit§, §revise§, §poll§, §list_recipients§ and §none§.
 
-§GET /api/agent/drafts§ lists up to 50 drafts, most recently updated first, as §{"drafts":[{"id","status","revision_number","subject","recipient_count","updated_at"}]}§. Add §?status=pending_approval§ (or any status) to filter.
+§GET /api/agent/drafts§ lists up to 50 drafts, most recently updated first, as §{"drafts":[{"id","status","revision_number","subject","recipient_count","updated_at","review_url"}]}§. Add §?status=pending_approval§ (or any status) to filter. **The list is every draft in the service, not just yours:** there is one agent key, shared by every agent and session that uses it, and drafts aren't tagged with who made them. To track your own drafts, keep the ids that create returned. If the user asks which drafts are theirs, show the list and let them say.
 
 ## Sending progress (§send§)
 
