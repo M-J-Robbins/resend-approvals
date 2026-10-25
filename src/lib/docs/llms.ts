@@ -12,11 +12,11 @@ export function buildLlmsTxt(origin: string, maxRecipients: number): string {
 
 - Base URL: ${origin}
 - Auth: \`Authorization: Bearer <agent API key>\` on /api/agent/drafts requests. Ask the user for the key.
-- Body: \`{"recipients": ["a@example.com", ...], "subject": "...", "html": "..."}\`. There is no to, cc or bcc.
-- Flow: POST /api/agent/drafts, then PUT /api/agent/drafts/{id} to revise, then POST /api/agent/drafts/{id}/submit, then poll GET /api/agent/drafts/{id}.
+- Body: \`{"recipients": ["delivered@resend.dev", ...], "subject": "...", "html": "..."}\`. There is no to, cc or bcc.
+- Flow: POST /api/agent/drafts, then PUT /api/agent/drafts/{id} to revise, then POST /api/agent/drafts/{id}/submit, then poll GET /api/agent/drafts/{id}. Give the user the draft's review_url.
 - Full recipient list and per-recipient status: GET /api/agent/drafts/{id}/recipients?offset=0&limit=500.
 - After approval, \`send\` reports progress; "sent" means accepted by Resend, not delivered. A partial failure ends as "failed" with send.partial = true, and only a human can resume it.
-- Testing: the shared sender only delivers to the service owner's address and delivered@resend.dev.
+- Recipients: the shared testing sender only delivers to delivered@resend.dev (or delivered+anything@resend.dev). Use those; any other address fails.
 - Review UI for humans: ${origin}/
 `;
 }

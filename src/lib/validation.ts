@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { draftStatus } from "@/db/schema";
-import { AppError } from "./errors";
+import { AppError, validationError } from "./errors";
 import { canonicalRecipients } from "./hash";
 
 /** Invalid addresses listed in an invalid_recipients error. */
@@ -54,14 +54,37 @@ function rejectLegacyFields(raw: unknown) {
   );
 }
 
+/** Parses with a hint that describes a valid body, so an agent can fix its request without the docs. */
+function parseWithHint<T extends z.ZodType>(schema: T, raw: unknown, hint: string): z.infer<T> {
+  const result = schema.safeParse(raw);
+  if (!result.success) throw validationError(result.error, hint);
+  return result.data;
+}
+
 export function parseCreateDraft(raw: unknown) {
   rejectLegacyFields(raw);
-  return createDraftBody.parse(raw);
+  return parseWithHint(
+    createDraftBody,
+    raw,
+    "Send a JSON object with exactly these fields: `recipients` (an array of email addresses), `subject` (one line) and `html` (the email's HTML). Other fields, such as `body`, `text` or `from`, are not accepted.",
+  );
 }
 
 export function parseReviseDraft(raw: unknown) {
   rejectLegacyFields(raw);
-  return reviseDraftBody.parse(raw);
+  return parseWithHint(
+    reviseDraftBody,
+    raw,
+    "Send one or more of `recipients`, `subject` and `html`. Omitted fields are kept; `recipients` and `html` replace the current value in full. Other fields, such as `body`, `text` or `from`, are not accepted.",
+  );
+}
+
+export function parseSubmit(raw: unknown) {
+  return parseWithHint(
+    submitBody,
+    raw,
+    'Send {"revision_id": "<the draft\'s current revision.id>"}. The `submit` entry in the draft\'s `next_actions` has the exact body.',
+  );
 }
 
 /**
@@ -114,8 +137,8 @@ export function checkRecipients(
   return canonical;
 }
 
-export const submitBody = z
-  .object({ revision_id: z.string().min(1) })
+const submitBody = z
+  .object({ revision_id: z.string("revision_id is required.").min(1) })
   .strict();
 
 export const approveBody = z

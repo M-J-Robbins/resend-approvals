@@ -10,7 +10,7 @@ export function POST(req: Request) {
     requireAgent(req);
     const body = parseCreateDraft(await readJson(req));
     const view = await createDraft(body);
-    return agentJson(view, 201, {
+    return agentJson(req, view, 201, {
       Location: `/api/agent/drafts/${view.id}`,
     });
   });

@@ -75,6 +75,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
         "Agents can create, revise and submit drafts, read their status and send progress, and page through recipients. Agents can NOT approve, reject, send or resume a failed send: those need a human reviewer credential, and the key you use here is refused on those routes with 403 `agent_cannot_review`. " +
         "Changing a draft creates a new revision, and a new revision needs a new approval. " +
         "Sending is asynchronous and happens in batches after approval; `sent` means accepted by Resend, not delivered. " +
+        "This deployment uses Resend's shared testing sender, so send only to delivered@resend.dev (or delivered+anything@resend.dev); any other address fails. " +
         "Start with " +
         origin +
         "/SKILL.md for the workflow and examples.",
@@ -178,7 +179,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
           operationId: "reviseDraft",
           summary: "Revise a draft",
           description:
-            "Creates a new revision. Omitted fields keep their current value; a provided `recipients` list replaces the whole list. Returns the draft to status `draft`, withdrawing any pending approval request; submit it again afterwards. Not allowed while the draft is approved (sending) or sent (409 `draft_locked`). Sending identical content (including the same recipient set in another order or case) is a no-op (409 `no_changes` if the draft was rejected or failed). Revising a partially sent draft sends the new revision to its whole list, so recipients who were already sent would get a second email.",
+            "Creates a new revision. Omitted fields keep their current value; a field you send replaces its current value in full (send the complete `html`, or the complete `recipients` list). Returns the draft to status `draft`, withdrawing any pending approval request; submit it again afterwards. Not allowed while the draft is approved (sending) or sent (409 `draft_locked`). Sending identical content (including the same recipient set in another order or case) is a no-op (409 `no_changes` if the draft was rejected or failed). Revising a partially sent draft sends the new revision to its whole list, so recipients who were already sent would get a second email.",
           parameters: [idParam],
           requestBody: body("ReviseDraftRequest"),
           responses: {
@@ -290,7 +291,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
           type: "object",
           additionalProperties: false,
           minProperties: 1,
-          description: "Any subset of the draft fields. `recipients`, if given, replaces the whole list.",
+          description: "Any subset of the draft fields. Each field given replaces its current value in full.",
           properties: { recipients, subject, html },
         },
         SubmitRequest: {
@@ -413,6 +414,11 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
             },
             created_at: { type: "string", format: "date-time" },
             updated_at: { type: "string", format: "date-time" },
+            review_url: {
+              type: "string",
+              format: "uri",
+              description: "Opens this draft in the human review UI. Give it to the user so they can review it.",
+            },
             next_actions: { type: "array", items: ref("NextAction") },
           },
         },
@@ -459,7 +465,7 @@ export function buildOpenApi(origin: string, maxRecipients: number) {
             },
             description: { type: "string" },
             method: { type: "string" },
-            path: { type: "string" },
+            path: { type: "string", description: "Relative to the base URL." },
             body: { type: "object", additionalProperties: { type: "string" } },
           },
         },
