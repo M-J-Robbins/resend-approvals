@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { AppError, errorResponse } from "./errors";
-import { agentNextActions, type DraftView } from "@/services/drafts";
+import { agentNextActions, type DraftView, type RevisedDraftView } from "@/services/drafts";
 import { processSends } from "@/services/review";
 
 /** Next.js 15+ passes route params as a promise. */
@@ -31,18 +31,26 @@ export async function readJson(req: Request): Promise<unknown> {
 }
 
 /**
+ * A link that opens the draft in the review UI. Built from the request's
+ * origin rather than a configured URL, so preview deployments and localhost
+ * link to themselves.
+ */
+export function reviewUrl(req: Request, draftId: string): string {
+  return `${new URL(req.url).origin}/?draft=${encodeURIComponent(draftId)}`;
+}
+
+/**
  * Agent responses always carry next_actions, and a review_url the agent can
  * hand to the human.
  */
 export function agentJson(
   req: Request,
-  view: DraftView,
+  view: DraftView | RevisedDraftView,
   status = 200,
   headers?: HeadersInit,
 ): Response {
-  const review_url = `${new URL(req.url).origin}/?draft=${encodeURIComponent(view.id)}`;
   return Response.json(
-    { ...view, review_url, next_actions: agentNextActions(view) },
+    { ...view, review_url: reviewUrl(req, view.id), next_actions: agentNextActions(view) },
     { status, headers },
   );
 }

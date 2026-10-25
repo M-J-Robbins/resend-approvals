@@ -60,6 +60,24 @@ export interface DraftView {
   updated_at: string;
 }
 
+/**
+ * How a revise changed the recipient list, compared with the revision it
+ * replaced. `recipients` replaces the list in full, so an agent that sends
+ * only the address it wants to add silently drops everyone else. The request
+ * is valid, so this summary (and its warning) is the only signal it gets.
+ */
+export interface RecipientsChange {
+  previous_count: number;
+  count: number;
+  added: number;
+  removed: number;
+  /** Set when recipients were removed, which is the case worth double-checking. */
+  warning?: string;
+}
+
+/** A revise response: the draft, plus what happened to its recipients (null if no new revision was made). */
+export type RevisedDraftView = DraftView & { recipients_change: RecipientsChange | null };
+
 /** "sent" means accepted by Resend, not delivered. */
 export interface SendProgress {
   status: "sending" | "sent" | "failed";
@@ -299,12 +317,18 @@ export async function listRecipients(draftId: string, query: RecipientsQuery) {
 }
 
 /** Tells an agent what it can do next, so it never has to guess. */
-export function agentNextActions(v: DraftView): NextAction[] {
+/** Repeats a recipients_change warning where the agent decides whether to submit. */
+function removedWarning(v: DraftView | RevisedDraftView): string {
+  const warning = "recipients_change" in v ? v.recipients_change?.warning : undefined;
+  return warning ? ` First check: ${warning}` : "";
+}
+
+export function agentNextActions(v: DraftView | RevisedDraftView): NextAction[] {
   const path = `/api/agent/drafts/${v.id}`;
   const revise: NextAction = {
     action: "revise",
     description:
-      'Send a JSON body with any of recipients, subject and html, e.g. {"subject": "New subject"}. Omitted fields are kept; recipients and html replace the current value in full, so send the complete HTML. Creates a new revision that needs a new approval.',
+      'Send a JSON body with any of recipients, subject and html, e.g. {"subject": "New subject"}. Omitted fields are kept; recipients and html replace the current value in full, so send the complete HTML, and to add a recipient send the current list plus the new address. Creates a new revision that needs a new approval.',
     method: "PUT",
     path,
   };
@@ -317,7 +341,7 @@ export function agentNextActions(v: DraftView): NextAction[] {
 
   const recipients: NextAction = {
     action: "list_recipients",
-    description: `Page through all ${v.revision.recipient_count} recipients (and their send status once approved).`,
+    description: `Page through ${v.revision.recipient_count === 1 ? "the 1 recipient" : `all ${v.revision.recipient_count} recipients`} (and their send status once approved).`,
     method: "GET",
     path: `${path}/recipients?offset=0&limit=500`,
   };
@@ -328,7 +352,7 @@ export function agentNextActions(v: DraftView): NextAction[] {
       return [
         {
           action: "submit",
-          description: `Submit revision ${v.revision.number} for human approval.`,
+          description: `Submit revision ${v.revision.number} for human approval.${removedWarning(v)}`,
           method: "POST",
           path: `${path}/submit`,
           body: { revision_id: v.revision.id },
@@ -449,8 +473,8 @@ export async function createDraft(input: CreateDraftInput): Promise<DraftView> {
 export async function reviseDraft(
   id: string,
   patch: ReviseDraftInput,
-): Promise<DraftView> {
-  await getDb().transaction(async (tx) => {
+): Promise<RevisedDraftView> {
+  const recipientsChange = await getDb().transaction(async (tx): Promise<RecipientsChange | null> => {
     const [draft] = await tx
       .select()
       .from(drafts)
@@ -488,7 +512,7 @@ export async function reviseDraft(
 
     if (contentHash === current.contentHash) {
       // Nothing changed: don't mint a revision (and don't withdraw a pending approval).
-      if (draft.status === "draft" || draft.status === "pending_approval") return;
+      if (draft.status === "draft" || draft.status === "pending_approval") return null;
       throw conflict(
         "no_changes",
         `The content is identical to revision ${current.number}, which is '${draft.status}'.`,
@@ -518,9 +542,27 @@ export async function reviseDraft(
         updatedAt: sql`now()`,
       })
       .where(eq(drafts.id, id));
+
+    return compareRecipients(current.recipients, merged.recipients);
   });
 
-  return getDraftView(id);
+  return { ...(await getDraftView(id)), recipients_change: recipientsChange };
+}
+
+function compareRecipients(previous: string[], next: string[]): RecipientsChange {
+  const before = new Set(previous);
+  const after = new Set(next);
+  const added = next.filter((r) => !before.has(r)).length;
+  const removed = previous.filter((r) => !after.has(r)).length;
+  return {
+    previous_count: previous.length,
+    count: next.length,
+    added,
+    removed,
+    ...(removed > 0 && {
+      warning: `This revision removed ${removed} of the previous ${previous.length} recipient${previous.length === 1 ? "" : "s"}. \`recipients\` replaces the whole list, so if you meant to add someone, send the current list plus the new address.`,
+    }),
+  };
 }
 
 export async function submitDraft(

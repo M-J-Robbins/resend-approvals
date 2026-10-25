@@ -75,7 +75,7 @@ export function parseReviseDraft(raw: unknown) {
   return parseWithHint(
     reviseDraftBody,
     raw,
-    "Send one or more of `recipients`, `subject` and `html`. Omitted fields are kept; `recipients` and `html` replace the current value in full. Other fields, such as `body`, `text` or `from`, are not accepted.",
+    "Send one or more of `recipients`, `subject` and `html`. Omitted fields are kept; `recipients` and `html` replace the current value in full, so to add a recipient send the current list plus the new address (the draft's `revision.recipients_preview` has up to 10; page the rest from its /recipients endpoint). Other fields, such as `body`, `text`, `from` or `add_recipients`, are not accepted.",
   );
 }
 
@@ -129,7 +129,7 @@ export function checkRecipients(
       400,
       "invalid_recipients",
       `${invalidCount} recipient${invalidCount === 1 ? " is" : "s are"} not a valid email address.`,
-      "Fix or remove the listed addresses (index is the position in the array you sent) and send the request again. Use plain addresses like a@example.com, not 'Name <a@example.com>'.",
+      "Fix or remove the listed addresses (index is the position in the array you sent) and send the request again. Use plain addresses like delivered@resend.dev, not 'Name <delivered@resend.dev>'.",
       { invalid_count: invalidCount, invalid },
     );
   }

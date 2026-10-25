@@ -24,7 +24,7 @@ Point your agent at the skill and it has everything it needs:
 Agents authenticate with `Authorization: Bearer <AGENT_API_KEY>`. The flow:
 
 1. `POST /api/agent/drafts` with `{ "recipients": [...], "subject": "...", "html": "..." }`
-2. `PUT /api/agent/drafts/{id}` to revise (each change is a new revision)
+2. `PUT /api/agent/drafts/{id}` to revise (each change is a new revision). Fields replace their value in full, so the response's `recipients_change` warns if recipients were dropped
 3. `POST /api/agent/drafts/{id}/submit` with the current `revision_id`
 4. Poll `GET /api/agent/drafts/{id}`: `status`, `review`, `send` progress and `next_actions`. Each draft response also has a `review_url` the agent hands to the human
 5. `GET /api/agent/drafts/{id}/recipients` to page through the list and per-recipient send status
