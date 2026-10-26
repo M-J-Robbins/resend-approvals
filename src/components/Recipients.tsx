@@ -129,23 +129,9 @@ export function Recipients({
   const showStatus = page?.items.some((i) => i.status !== null) ?? false;
 
   return (
-    <section className={styles.recipients} aria-labelledby={`${searchId}-heading`}>
-      <h3 id={`${searchId}-heading`} className={styles.heading}>
-        Recipients <span className={styles.count}>({formatCount(revision.recipient_count)})</span>
-      </h3>
-
-      <dl className={styles.facts}>
-        <div>
-          <dt>Unique recipients</dt>
-          <dd>{formatCount(revision.recipient_count)}</dd>
-        </div>
-        <div>
-          <dt>Duplicates removed</dt>
-          <dd>{formatCount(revision.duplicates_removed)}</dd>
-        </div>
-      </dl>
-
-      <Button popoverTarget={popoverId} className={styles.open}>
+    // The To value in the draft header: one button, with the list in a popover.
+    <>
+      <Button size="sm" popoverTarget={popoverId}>
         {revision.recipient_count === 1
           ? "View recipient"
           : `View all ${formatCount(revision.recipient_count)} recipients`}
@@ -182,6 +168,17 @@ export function Recipients({
             </kbd>
           </Button>
         </div>
+
+          <dl className={styles.facts}>
+            <div>
+              <dt>Unique recipients</dt>
+              <dd>{formatCount(revision.recipient_count)}</dd>
+            </div>
+            <div>
+              <dt>Duplicates removed</dt>
+              <dd>{formatCount(revision.duplicates_removed)}</dd>
+            </div>
+          </dl>
 
           <div className={styles.searchRow}>
             <label htmlFor={searchId} className={styles.searchLabel}>
@@ -261,7 +258,7 @@ export function Recipients({
             </>
           )}
       </div>
-    </section>
+    </>
   );
 }
 

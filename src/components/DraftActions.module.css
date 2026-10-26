@@ -102,7 +102,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 48rem) {
+@media (max-width: 64rem) {
     .panel {
         padding-block: calc(var(--spacing) * 3);
     }

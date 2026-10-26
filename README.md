@@ -49,7 +49,7 @@ Every error has a stable `code`, a plain-English `message` and a `hint` that des
 The review UI is at `/`. Sign in with the reviewer token. From there you can:
 
 - see pending drafts, with their recipient counts
-- inspect a draft: recipients (searchable, paged), subject, a sandboxed preview of the HTML and its source, and the revision history
+- inspect a draft like a received email: From, To (searchable, paged recipients), subject and preview text, a sandboxed preview of the HTML and its source, the email's size with a warning near Gmail's 102 KB clipping limit, and the revision history
 - approve or reject it
 - watch sending progress, and resume a send that failed or stalled
 
@@ -179,6 +179,14 @@ tests/                 Vitest suites and the fake Resend
 
 **A sandboxed preview.** Agent HTML is rendered in `<iframe sandbox="" srcdoc>`, so scripts and forms can't run. Remote images still load, so a tracking pixel in a draft would record an "open" when the reviewer looks at it. Blocking remote images until the reviewer allows them would fix that.
 
+**Mobile presets are device sizes, not email client sizes.** The mobile preview's presets use each phone's screen size in CSS pixels. A real email client takes some of that space for its own toolbars, headers and margins, and some clients add padding around the email, so the area an email actually gets is smaller and differs between apps. The presets are a quick starting point for checking a layout at phone widths, not an exact match for how Gmail or Apple Mail will show it. Width and height can be dragged or typed to any size.
+
+**Dark mode preview uses the email's own `prefers-color-scheme` styles.** The preview's Colour scheme dropdown (Light, Dark or System) sets `color-scheme` on the iframe, which switches the email's `@media (prefers-color-scheme: dark)` rules (and dark-only `<picture>` sources) on or off without changing its HTML or the sandbox. Light is the default, because most email clients show light. This matches clients that honour those styles, such as Apple Mail. Gmail's apps apply their own colour inversion and Outlook has its own dark mode selectors, and the preview shows neither. It needs a browser that lets an iframe's `color-scheme` decide the email's `prefers-color-scheme`: Chrome, Firefox and Safari 27 or later do; Safari 26 and earlier don't ([WebKit bug 284973](https://bugs.webkit.org/show_bug.cgi?id=284973)). The UI checks this once, using hidden iframes with a tiny test page of its own, and where it isn't supported it says so: the preview then follows the system setting, so the reviewer can change their system appearance or use another browser. Checked in Chrome, Firefox and Safari 27.
+
+**Android forced dark is simulated, with one sandbox exception.** Emails without their own dark mode are recoloured by Android (and Gmail on Android) using Chromium's auto dark mode. The preview's "Android forced dark" and "Gmail Android dark" options reproduce that algorithm (Gmail's is the same, except that it leaves an email declaring `<meta name="color-scheme" content="light only">` untouched; no other value matters). Both keep `color-scheme: light` on the iframe, so the email's own dark media queries don't fire and only the simulation changes colours. The algorithm it reads every element's computed colours and rewrites text, backgrounds and borders in CIE Lab, with Chromium's thresholds and matrices. It follows Chromium's [dark mode colour filter](https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/platform/graphics/dark_mode_color_filter.cc), [classifier](https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/platform/graphics/dark_mode_color_classifier.cc) and [Lab colour space](https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/platform/graphics/dark_mode_lab_color_space.h). Reading computed styles needs access to the rendered email, so while this option is selected the preview iframe is `sandbox="allow-same-origin"`: our page can read it, but the email still can't run scripts, submit forms or open windows. It is never combined with `allow-scripts`, because an email with both could lift its own sandbox and act as the signed-in reviewer. Every other option keeps `sandbox=""`.
+
+**Syntax highlighting with the CSS Custom Highlight API.** The HTML source tab uses Zeno's [Dracula theme](https://draculatheme.com/). A small tokenizer finds the tags, attributes, values, comments and entities. The CSS Custom Highlight API then colours ranges of the source's single text node, so no markup is ever built from the agent's HTML and a large email doesn't create thousands of elements. The API has limited support in older browsers (it needs Chrome or Edge 105+, Safari 17.2+ or Firefox 140+); in those the source is shown uncoloured but is otherwise the same. Comments use a slightly lighter blue-grey than Dracula's, because the original is hard to read against the dark background.
+
 **"sent" means accepted by Resend.** There are no delivery or bounce webhooks, so the service reports what Resend accepted, not what reached an inbox.
 
 ## Out of scope
@@ -198,8 +206,9 @@ tests/                 Vitest suites and the fake Resend
 - **Richer review of the content:**
   - a toggle to view an email's HTML, plain-text and AMP versions, for emails that come from .eml files
   - the From line and preview text shown under the subject
-  - a resizable mobile preview with common phone sizes
+  - mobile presets that match each email client's real viewing area (its toolbars and padding), not just the phone's screen size
   - remote images blocked until the reviewer allows them
+  - dark mode as Gmail and Outlook render it (their own colour inversion and selectors), not only `prefers-color-scheme`
   - warnings for images that won't load (`cid:`, relative paths)
   - schema.org markup extracted and checked
 
@@ -208,3 +217,4 @@ tests/                 Vitest suites and the fake Resend
 - **Very large HTML:** batches shrink towards one recipient, so a send could need more than one 240s worker run. It then waits for a human to resume; there is no automatic rescheduling.
 - **Rate limit:** the 5 requests per second limit is per worker. Two workers running at once (for example an approve and a resume) could approach Resend's limit; 429s are handled.
 - **Recipient case:** addresses are lowercased before storing and hashing. Strictly, the part before the `@` can be case-sensitive.
+- **CSS `light-dark()` in Safari's dark mode preview:** in Safari, styles written with `light-dark()` don't switch when the preview's Light / Dark control changes, even though `@media (prefers-color-scheme)` rules and `<picture>` sources do. In Chrome all three switch. To check an email's `light-dark()` styles, use Chrome.

@@ -481,6 +481,5 @@
 
     /* Email preview: emails assume a white canvas in both themes. */
     --preview-canvas: var(--color-white);
-    --preview-mobile-width: 375px;
     --preview-height: calc(var(--spacing) * 160);
 }
