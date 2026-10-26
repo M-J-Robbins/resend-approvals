@@ -258,7 +258,7 @@ export function EmailPreview({ html, subject }: { html: string; subject: string 
                     ))}
                   </select>
                 </label>
-                {/* One toggle: pressed means landscape. The icon turns with it. */}
+                {/* One toggle: pressed means landscape. The icon turns with it (see .rotateIcon). */}
                 <button
                   type="button"
                   aria-pressed={orientation === "landscape"}

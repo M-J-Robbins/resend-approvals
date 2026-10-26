@@ -181,7 +181,8 @@
     transition: rotate var(--duration-normal) var(--ease-in-out);
 }
 
-.rotate[aria-pressed="true"] .rotateIcon {
+/* Turned in portrait, upright in landscape, which reads better at this size. */
+.rotate[aria-pressed="false"] .rotateIcon {
     rotate: 90deg;
 }
 
