@@ -1,0 +1,11 @@
+.note {
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+    color: var(--text-default);
+}
+
+/* --text-link is under 4.5:1 at this size, so links keep the text colour and an underline. */
+.note a {
+    color: inherit;
+    text-decoration: underline;
+}

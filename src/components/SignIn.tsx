@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState, type FormEvent } from "react";
 import { api, ApiError } from "@/lib/client/api";
+import { AgentNote } from "./AgentNote";
 import { useAnnounce } from "./Announcer";
 import { Button } from "./Button";
 import styles from "./SignIn.module.css";
@@ -72,6 +73,7 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
             {busy ? "Signing in…" : "Sign in"}
           </Button>
         </form>
+        <AgentNote />
       </div>
     </main>
   );

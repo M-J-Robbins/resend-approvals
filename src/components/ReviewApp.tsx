@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, setUnauthorizedHandler } from "@/lib/client/api";
+import { AgentNote } from "./AgentNote";
 import { AnnouncerProvider, useAnnounce } from "./Announcer";
 import { Button } from "./Button";
 import { Notice } from "./Notice";
@@ -26,8 +27,8 @@ function SessionGate() {
   const router = useRouter();
   const [session, setSession] = useState<Session>("checking");
 
-  const check = useCallback(() => {
-    setSession("checking");
+  // Sets state only once the request settles, so it can run in an effect.
+  const runCheck = useCallback(() => {
     api
       .checkSession()
       .then(() => setSession("signed-in"))
@@ -40,7 +41,12 @@ function SessionGate() {
       );
   }, []);
 
-  useEffect(check, [check]);
+  useEffect(runCheck, [runCheck]);
+
+  const check = useCallback(() => {
+    setSession("checking");
+    runCheck();
+  }, [runCheck]);
 
   // Any 401 from the API (expired or cleared cookie) returns to sign-in.
   useEffect(() => {
@@ -64,9 +70,12 @@ function SessionGate() {
   if (session === "checking") {
     return (
       <main className={styles.center} aria-busy="true">
-        <p className={styles.loading}>
-          <Spinner /> Checking your session…
-        </p>
+        <div className={styles.checking}>
+          <p className={styles.loading}>
+            <Spinner /> Checking your session…
+          </p>
+          <AgentNote />
+        </div>
       </main>
     );
   }

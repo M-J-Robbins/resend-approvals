@@ -5,6 +5,13 @@
     padding: calc(var(--spacing) * 4);
 }
 
+.checking {
+    display: grid;
+    justify-items: center;
+    gap: calc(var(--spacing) * 3);
+    text-align: center;
+}
+
 .loading {
     display: inline-flex;
     align-items: center;

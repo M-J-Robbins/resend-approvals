@@ -6,9 +6,22 @@ An agent discovers the API, creates and revises a draft, submits it for approval
 
 A draft is one email for many recipients: one `recipients` list (up to 5,000 addresses), one subject, one HTML body. Every recipient gets their own individual copy, so there is no shared To, cc or bcc. A single transactional email is a list of one.
 
-The live demo caps drafts at 10 recipients (`MAX_RECIPIENTS`) to protect the free Resend quota. The default is 5,000.
-
 Stack: TypeScript, Next.js (App Router) on Vercel, Neon Postgres, Drizzle, Vitest.
+
+## Try it
+
+The service is live at **https://resend-approvals.vercel.app**. The agent key and the reviewer token were shared with the Resend team in the Slack submission message. They will be rotated after the review.
+
+1. **Give your agent the docs and the agent key.** For example: *"Read https://resend-approvals.vercel.app/SKILL.md. Using this API key, draft an email inviting the team to Thursday's planning meeting, send it to delivered@resend.dev, and submit it for my approval."* The agent returns a `review_url`.
+2. **Review it as a human.** Open the `review_url`, or https://resend-approvals.vercel.app/, and sign in with the reviewer token. Check the recipients and the preview, then approve or reject.
+3. **Watch the agent find out.** Ask the agent for the draft's status. It sees `approved`, then `sent` (or the reviewer's reason if you rejected it).
+
+Things worth trying:
+- ask the agent to revise a draft while it is open in the review UI
+- try to approve with the agent key (it is refused)
+- approve the same draft from two tabs (it is sent once)
+
+**Limits of the demo deployment.** It sends from Resend's shared testing sender (`onboarding@resend.dev`), which only delivers to Resend's test addresses, so use `delivered@resend.dev` or `delivered+anything@resend.dev`. Any other address fails its batch, and the failure is shown in the UI and to the agent. Drafts are capped at 10 recipients (`MAX_RECIPIENTS`) to protect the free plan's daily quota; the service itself supports 5,000.
 
 ## For agents
 
@@ -29,7 +42,7 @@ Agents authenticate with `Authorization: Bearer <AGENT_API_KEY>`. The flow:
 4. Poll `GET /api/agent/drafts/{id}`: `status`, `review`, `send` progress and `next_actions`. Each draft response also has a `review_url` the agent hands to the human
 5. `GET /api/agent/drafts/{id}/recipients` to page through the list and per-recipient send status
 
-Every error has a stable `code`, a plain-English `message` and a `hint` that describes a valid request. Agents should send to `delivered@resend.dev` on the demo deployment (see [Running locally](#running-locally)). Every draft response has `next_actions`, so an agent never has to guess what to do next.
+Every error has a stable `code`, a plain-English `message` and a `hint` that describes a valid request. Agents should send to `delivered@resend.dev` on the demo deployment (see [Try it](#try-it)). Every draft response has `next_actions`, so an agent never has to guess what to do next.
 
 ## For humans
 
@@ -102,7 +115,7 @@ npm run db:migrate           # apply drizzle/ migrations
 npm run dev                  # http://localhost:3000
 ```
 
-`AGENT_API_KEY` and `REVIEWER_TOKEN` must be different secrets of at least 32 characters (`openssl rand -hex 32`).
+`AGENT_API_KEY` and `REVIEWER_TOKEN` must be different secrets of at least 32 characters (`openssl rand -hex 32`). The other variables are documented in `.env.example`.
 
 Without a verified domain, the sender is `onboarding@resend.dev`. Resend then only delivers to the email address of the account that owns the API key, and to test addresses such as `delivered@resend.dev`. Any other recipient fails its batch with Resend's error, so `/SKILL.md` tells agents to send to `delivered@resend.dev`.
 
@@ -113,9 +126,12 @@ Without a verified domain, the sender is `onboarding@resend.dev`. Resend then on
 ```bash
 npm test         # Vitest
 npm run typecheck
+npm run lint     # ESLint with Next's config
 ```
 
-The tests run against a real Postgres database, with Resend replaced by a fake that models the batch endpoint and its idempotency behaviour. That fake counts how many emails each recipient really received. `tests/setup.ts` refuses to run against a production branch.
+The tests use the database in `.env.local`, so point it at a development database or branch (on Neon, a branch of your project). They delete only the rows they create. They run against a real Postgres database, with Resend replaced by a fake that models the batch endpoint and its idempotency behaviour. That fake counts how many emails each recipient really received. `tests/setup.ts` refuses to run against a production branch.
+
+CI (`.github/workflows/ci.yml`) runs lint, typecheck, the migrations, the tests and the build on every pull request, against a throwaway Postgres 17 container with dummy keys.
 
 Covered:
 
@@ -123,6 +139,7 @@ Covered:
 - **Workers and recovery:** racing workers never sending the same batch twice, and a worker killed mid-send recovered with no duplicate email, including when Resend created the email but the response was lost.
 - **Failures:** partial failure and resume, 429 retried with the same key, the 23-hour rule per batch, and a 5,000-recipient job emailing everyone exactly once.
 - **Inputs and access:** recipient validation and paging, and credential separation on the real route handlers.
+- **Agent guidance:** every validation error carries a hint, draft responses carry a `review_url`, and a revise that drops recipients is flagged.
 
 Each concurrency test repeats several rounds.
 
@@ -142,16 +159,51 @@ drizzle/               migrations
 tests/                 Vitest suites and the fake Resend
 ```
 
-## Scope and limits
+## Design decisions and tradeoffs
 
-Out of scope:
+**One email, many recipients, each sent an individual copy.** A draft has one recipient list instead of To, Cc and Bcc. The reviewer approves one list, one subject and one body. Nobody sees anyone else's address, and the send maps directly onto Resend's batch endpoint. The cost: no shared threads, such as a group email where everyone can reply all. A single transactional email is just a list of one.
+
+**Approval is bound to an immutable revision.** Approve names a revision and repeats its content hash and recipient count. The server recomputes the hash from the stored row. The simpler alternative, approving a draft id, has a race: the agent edits between the reviewer reading and clicking. Immutable revisions also give the review UI a full history for free. The cost is a row per edit, which is small next to the guarantee.
+
+**Postgres is the lock and the queue.** Double sends are prevented by a conditional `UPDATE`, a unique constraint on the send job, and `FOR UPDATE SKIP LOCKED` to claim batches. A message queue or Redis lock would add a second system, and a queue is at-least-once anyway, so it would still need the database checks and the idempotency keys. The state already lives in Postgres, and one transaction can check it and change it together.
+
+**Background sending with Next.js `after()`, not a job queue or cron.** Approve answers `202` and the same function keeps running to send. That needs no extra infrastructure on Vercel, and a demo-sized send is a single Resend request. The cost: a run is capped at 300 seconds (the worker stops itself at 240), and nothing restarts a stalled or very long send by itself, so a human clicks **Resume**. The UI offers it after 2 minutes with no progress. A durable queue (for example QStash or Inngest) is the next step if sends got large; the chunk table already holds all the state a queue worker would need.
+
+**An idempotency key per batch, retried by outcome.** Resend's batch endpoint takes one `Idempotency-Key` per request, so each batch of up to 100 has its own. A retry after an unknown outcome (timeout, 5xx) reuses the key, so Resend drops a duplicate. A definite rejection rotates the key. A batch whose outcome is unknown and whose key is older than 23 hours is never retried automatically, because Resend forgets keys after 24 hours. The alternative, never retrying unknown outcomes, would turn every network blip into a failed send.
+
+**Strict batch validation.** Batches use `x-batch-validation: strict`, so a batch fully succeeds or fully fails. That keeps each batch's state simple and makes retries safe. The cost: one bad address fails up to 99 good ones in the same batch. Addresses are validated when the draft is created, which makes this rare outside the demo's testing sender.
+
+**Two preconfigured secrets, no accounts.** One agent key and one reviewer token, each refused on the other's routes. That is enough to make sure agents can't approve. The cost: drafts don't record which agent made them, so every agent sees the whole draft list. Per-agent keys would fix that.
+
+**REST plus written docs for agents.** Agents get `/SKILL.md`, an OpenAPI spec and `/llms.txt`. Every response lists `next_actions`, and every error has a `hint`. That works with any agent that can make HTTP requests, without installing anything. The docs were tested by giving fresh agent sessions only the skill URL, then fixing whatever they hesitated over. Two examples: the test-recipient rule moved to the top of the skill, and revise responses now warn when the recipient list shrank. An MCP server would be more convenient for some agents, and is the first thing on the list below.
+
+**A sandboxed preview.** Agent HTML is rendered in `<iframe sandbox="" srcdoc>`, so scripts and forms can't run. Remote images still load, so a tracking pixel in a draft would record an "open" when the reviewer looks at it. Blocking remote images until the reviewer allows them would fix that.
+
+**"sent" means accepted by Resend.** There are no delivery or bounce webhooks, so the service reports what Resend accepted, not what reached an inbox.
+
+## Out of scope
 
 - personalisation or merge variables
-- attachments, scheduling and unsubscribe headers
+- attachments, scheduling and unsubscribe headers (an agent sending an existing HTML or .eml file puts its HTML in the draft; `/SKILL.md` says what is dropped)
 - delivery and bounce webhooks
 - user accounts (the credentials are preconfigured)
 
-Known limits:
+## With more time
+
+- **An MCP server** with the same operations as the agent API, for agents that prefer tools to HTTP.
+- **Per-agent keys**, so drafts have an owner and the list can be filtered by it.
+- **A durable queue for sending**, so stalled and very large sends resume without a human.
+- **A verified sending domain**, so any address can receive the demo's emails.
+- **Delivery webhooks**, to report delivered, bounced and complained per recipient.
+- **Richer review of the content:**
+  - a toggle to view an email's HTML, plain-text and AMP versions, for emails that come from .eml files
+  - the From line and preview text shown under the subject
+  - a resizable mobile preview with common phone sizes
+  - remote images blocked until the reviewer allows them
+  - warnings for images that won't load (`cid:`, relative paths)
+  - schema.org markup extracted and checked
+
+## Known limits
 
 - **Very large HTML:** batches shrink towards one recipient, so a send could need more than one 240s worker run. It then waits for a human to resume; there is no automatic rescheduling.
 - **Rate limit:** the 5 requests per second limit is per worker. Two workers running at once (for example an approve and a resume) could approach Resend's limit; 429s are handled.

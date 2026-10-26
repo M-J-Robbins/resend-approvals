@@ -202,6 +202,23 @@ These happen in the review UI. Your key is refused on all of them (403 §agent_c
 - §html§: the email's HTML, up to about 1 MB, identical for everyone. A fragment such as §<p>Hi</p>§ is fine; a full §<html>§ document works too. No separate plain-text part and no attachments.
 - §from§ is fixed by the service. Sending a §from§ (or any unknown field) is rejected.
 
+## Using an existing HTML or .eml file
+
+The service has no file upload or attachments. To send an email the user already has, read the file and put its content in the draft.
+
+**An HTML file:** send its whole content as §html§.
+
+- Images must be absolute §https://§ URLs. Relative paths (§images/logo.png§) and §file://§ paths show as broken images, both to the reviewer and in the inbox. Tell the user if the file has any.
+- Avoid images embedded as §data:§ URIs: many email clients (Gmail included) block them, and they count towards the 1 MB limit.
+- Scripts and forms are stripped by email clients and blocked in the review preview. Don't rely on them.
+
+**An .eml file** (a saved MIME message):
+
+- Use the §text/html§ part as §html§, decoded from its transfer encoding (quoted-printable or base64) to plain text. Never send the raw MIME source or still-encoded text.
+- Use the §Subject§ header as §subject§, decoded if it is an encoded word (§=?UTF-8?B?...?=§ or §=?UTF-8?Q?...?=§).
+- Don't copy §To§, §Cc§ or §Bcc§ into §recipients§ without asking the user, and follow "Who can receive email" above.
+- These are dropped, so tell the user: §From§ and §Reply-To§ (the sender is fixed), the plain-text part (only HTML is sent), attachments, and inline images referenced as §cid:§ (they show as broken images, so replace them with §https://§ URLs if the user can host them).
+
 ## Errors
 
 Every error is JSON: §{"error":{"code","message","hint"}}§. Read §hint§; it says what to do.
