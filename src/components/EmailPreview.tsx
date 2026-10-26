@@ -258,24 +258,21 @@ export function EmailPreview({ html, subject }: { html: string; subject: string 
                     ))}
                   </select>
                 </label>
-                <div role="group" aria-label="Orientation" className={styles.segmented}>
-                  {(["portrait", "landscape"] as const).map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      aria-pressed={orientation === o}
-                      className={styles.segment}
-                      onClick={() => {
-                        if (o === orientation) return;
-                        setOrientation(o);
-                        // Turning the device swaps its sides, whatever the size.
-                        setMobileSize((s) => ({ width: s.height, height: s.width }));
-                      }}
-                    >
-                      {o === "portrait" ? "Portrait" : "Landscape"}
-                    </button>
-                  ))}
-                </div>
+                {/* One toggle: pressed means landscape. The icon turns with it. */}
+                <button
+                  type="button"
+                  aria-pressed={orientation === "landscape"}
+                  title={orientation === "portrait" ? "Rotate to landscape" : "Rotate to portrait"}
+                  className={styles.rotate}
+                  onClick={() => {
+                    setOrientation((o) => (o === "portrait" ? "landscape" : "portrait"));
+                    // Turning the device swaps its sides, whatever the size.
+                    setMobileSize((s) => ({ width: s.height, height: s.width }));
+                  }}
+                >
+                  <RotateIcon />
+                  <span className={styles.visuallyHidden}>Landscape</span>
+                </button>
                 <PixelInput
                   label="Width"
                   value={mobileSize.width}
@@ -407,4 +404,17 @@ function useForcedDarkReloads(stageRef: RefObject<HTMLElement | null>, active: b
     };
   }, [stageRef, active]);
   return run;
+}
+
+/** A phone on its side between two rotation arrows. Decorative; the button names itself. */
+function RotateIcon() {
+  return (
+    <svg className={styles.rotateIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="8.25" y="3" width="7.5" height="18" rx="1.75" transform="rotate(-45 12 12)" />
+      <path d="M14.08 2.22A10 10 0 0 1 21.78 9.92" />
+      <path d="M22.8 7.53 21.78 9.92 19.88 8.15" />
+      <path d="M9.92 21.78A10 10 0 0 1 2.22 14.08" />
+      <path d="M1.2 16.47 2.22 14.08 4.12 15.85" />
+    </svg>
+  );
 }
