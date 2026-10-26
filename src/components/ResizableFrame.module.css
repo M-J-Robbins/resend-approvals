@@ -1,0 +1,83 @@
+.frame {
+    position: relative;
+    flex: none;
+}
+
+/* The iframe (or whatever is inside) fills the box. */
+.frame > :first-child {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+}
+
+/* An iframe swallows pointer events; ignore them while a drag is running. */
+.frame[data-dragging] > :first-child {
+    pointer-events: none;
+}
+
+.edgeX,
+.edgeY,
+.corner {
+    position: absolute;
+    touch-action: none;
+}
+
+.edgeX {
+    top: 0;
+    right: calc(var(--spacing) * -2);
+    width: calc(var(--spacing) * 3);
+    height: 100%;
+    cursor: ew-resize;
+}
+
+.edgeY {
+    left: 0;
+    bottom: calc(var(--spacing) * -2);
+    width: 100%;
+    height: calc(var(--spacing) * 3);
+    cursor: ns-resize;
+}
+
+/* A visible grip, so the reviewer can see the frame can be resized. */
+.corner {
+    right: calc(var(--spacing) * -2);
+    bottom: calc(var(--spacing) * -2);
+    width: calc(var(--spacing) * 5);
+    height: calc(var(--spacing) * 5);
+    border-right: 3px solid var(--border-control);
+    border-bottom: 3px solid var(--border-control);
+    border-bottom-right-radius: var(--radius-md);
+    cursor: nwse-resize;
+}
+
+.edgeX:hover,
+.edgeY:hover,
+.corner:hover,
+.frame[data-dragging] .corner {
+    background: var(--bg-interactive);
+}
+
+.field {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 1.5);
+    color: var(--text-default);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.input {
+    width: 6ch;
+    box-sizing: content-box;
+    min-height: calc(var(--spacing) * 8);
+    padding: 0 calc(var(--spacing) * 2);
+    border: var(--border-width) solid var(--border-control);
+    border-radius: var(--radius-md);
+    background: var(--bg-base);
+    color: var(--text-emphasis);
+    font-variant-numeric: tabular-nums;
+}
+
+.unit {
+    color: var(--text-default);
+}

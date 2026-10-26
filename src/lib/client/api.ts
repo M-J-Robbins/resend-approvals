@@ -4,8 +4,11 @@
  */
 import type { DraftView, listDrafts, listRecipients, SendProgress } from "@/services/drafts";
 import type { ResumeResult } from "@/services/review";
+import type { Sender } from "@/lib/env";
 
-export type { DraftView, ResumeResult, SendProgress };
+export type { DraftView, ResumeResult, SendProgress, Sender };
+/** The review draft response: the draft plus the fixed sender for the From line. */
+export type ReviewDraft = DraftView & { sender: Sender };
 export type DraftStatus = DraftView["status"];
 export type DraftSummary = Awaited<ReturnType<typeof listDrafts>>[number];
 export type RecipientPage = Awaited<ReturnType<typeof listRecipients>>;
@@ -93,7 +96,7 @@ export const api = {
       { signal },
     ).then((r) => r.drafts),
 
-  getDraft: (id: string, signal?: AbortSignal) => request<DraftView>(draftPath(id), { signal }),
+  getDraft: (id: string, signal?: AbortSignal) => request<ReviewDraft>(draftPath(id), { signal }),
 
   /** Answers 202 once the send job exists; sending continues in the background. */
   approve: (id: string, revision: { id: string; content_hash: string; recipient_count: number }) =>

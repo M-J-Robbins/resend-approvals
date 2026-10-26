@@ -62,6 +62,35 @@
     line-height: var(--text-xs--line-height);
 }
 
+/* From and To, above the subject, like the header of a received email. */
+.envelope {
+    display: grid;
+    gap: calc(var(--spacing) * 1.5);
+}
+
+.envelopeRow {
+    display: grid;
+    grid-template-columns: calc(var(--spacing) * 12) minmax(0, 1fr);
+    align-items: baseline;
+    gap: calc(var(--spacing) * 2);
+}
+
+.envelopeRow dt {
+    color: var(--text-default);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.senderName {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-emphasis);
+}
+
+.address {
+    color: var(--text-default);
+    overflow-wrap: anywhere;
+}
+
 .subject {
     font-size: var(--text-2xl);
     line-height: var(--text-2xl--line-height);
@@ -72,6 +101,30 @@
 }
 
 /* Focused programmatically when a draft opens; no ring for that. */
+.subjectBlock {
+    display: grid;
+    gap: calc(var(--spacing) * 1);
+}
+
+.previewText {
+    color: var(--text-default);
+    overflow-wrap: anywhere;
+}
+
+.noPreview {
+    font-style: italic;
+}
+
+.visuallyHidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 .subject:focus {
     outline: none;
 }
@@ -161,7 +214,7 @@
     color: var(--text-default);
 }
 
-@media (max-width: 48rem) {
+@media (max-width: 64rem) {
     .detail {
         gap: calc(var(--spacing) * 5);
         padding: calc(var(--spacing) * 4) calc(var(--spacing) * 4) calc(var(--spacing) * 12);

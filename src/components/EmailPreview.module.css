@@ -85,9 +85,95 @@
     line-height: var(--text-xs--line-height);
 }
 
+.size {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: calc(var(--spacing) * 1.5) calc(var(--spacing) * 2);
+    color: var(--text-default);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.sizeValue {
+    font-weight: var(--font-weight-medium);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-emphasis);
+}
+
+/* In a chip the size takes the chip's tone colour. */
+.sizeStatus .sizeValue {
+    color: inherit;
+}
+
+/* A status chip that is also the tooltip's trigger. */
+.sizeStatus {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 1);
+    padding: calc(var(--spacing) * 0.5) calc(var(--spacing) * 2);
+    border: var(--border-width) solid;
+    border-radius: var(--radius-full);
+    font-weight: var(--font-weight-medium);
+}
+
+.warning {
+    border-color: var(--border-warning);
+    background: var(--bg-warning);
+    color: var(--text-warning);
+}
+
+.error {
+    border-color: var(--border-error);
+    background: var(--bg-error);
+    color: var(--text-error);
+}
+
+.dimensions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+    color: var(--text-default);
+}
+
+.schemeNote {
+    display: flex;
+    align-items: baseline;
+    gap: calc(var(--spacing) * 2);
+    color: var(--text-default);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.schemeNote svg {
+    flex: none;
+    translate: 0 0.15em;
+}
+
+/* A labelled dropdown in the preview toolbar (device, colour scheme). */
+.deviceField {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing) * 1.5);
+    font-size: var(--text-xs);
+    line-height: var(--text-xs--line-height);
+}
+
+.select {
+    min-height: calc(var(--spacing) * 8);
+    padding: 0 calc(var(--spacing) * 2);
+    border: var(--border-width) solid var(--border-control);
+    border-radius: var(--radius-md);
+    background: var(--bg-base);
+    color: var(--text-emphasis);
+    font-size: var(--text-xs);
+}
+
 .stage {
     display: flex;
-    justify-content: center;
+    /* safe: a frame wider than the stage scrolls from its left edge instead of being cut off. */
+    justify-content: safe center;
     padding: calc(var(--spacing) * 3);
     border: var(--border-width) solid var(--border-default);
     border-radius: var(--radius-xl);
@@ -103,17 +189,40 @@
     max-height: 75dvh;
     border: var(--border-width) solid var(--border-default);
     border-radius: var(--radius-md);
-    /* Emails are designed for a white canvas in both themes. */
+    /* Emails without their own background assume white, whatever the scheme. */
     background: var(--preview-canvas);
+    /* The default; the Light/Dark/System control overrides it inline. */
     color-scheme: light;
 }
 
-.stage[data-viewport="mobile"] .frame {
-    width: var(--preview-mobile-width);
-    max-width: none;
-    flex: none;
+/*
+ * Mobile: the size controls above the frame, both centred. Extra room below
+ * and to the right for the resize handles.
+ */
+.stage[data-viewport="mobile"] {
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: safe center;
+    gap: calc(var(--spacing) * 3);
+    padding: calc(var(--spacing) * 3) calc(var(--spacing) * 5) calc(var(--spacing) * 5);
 }
 
+.stage[data-viewport="mobile"] .dimensions {
+    justify-content: center;
+}
+
+/*
+ * HTML source in Zeno's Dracula theme (draculatheme.com), dark in both
+ * UI themes. Token colours are CSS Custom Highlight API highlights over the
+ * source's single text node (EmailPreview's useSourceHighlights); browsers
+ * without the API show it uncoloured. ::highlight() only takes a few
+ * properties (no font-style), and the colours are written out because
+ * highlight pseudo-elements don't reliably inherit custom properties. The
+ * names are :global because CSS Modules would otherwise rename them, and they
+ * must match the names the code registers.
+ * Comments use #8592c4 instead of Dracula's #6272a4, which is 3:1 on this
+ * background; every other colour is Dracula's own and at least 4.5:1.
+ */
 .source {
     max-height: var(--preview-height);
     margin: 0;
@@ -121,17 +230,40 @@
     overflow: auto;
     border: var(--border-width) solid var(--border-default);
     border-radius: var(--radius-xl);
-    background: var(--bg-subtle);
-    color: var(--text-emphasis);
+    background: #282a36;
+    color: #f8f8f2;
+    color-scheme: dark;
     font-size: var(--text-xs);
     line-height: var(--leading-relaxed);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
 
-@media (forced-colors: active) {
-    .tab[aria-selected="true"],
-    .segment[aria-pressed="true"] {
-        border-color: Highlight;
-    }
+.source ::selection {
+    background: #44475a;
+}
+
+/* One rule per highlight: Chrome drops a rule whose selector list has more than one ::highlight(). */
+.source :global(::highlight(email-source-tag)) {
+    color: #ff79c6;
+}
+
+.source :global(::highlight(email-source-doctype)) {
+    color: #ff79c6;
+}
+
+.source :global(::highlight(email-source-attribute)) {
+    color: #50fa7b;
+}
+
+.source :global(::highlight(email-source-value)) {
+    color: #f1fa8c;
+}
+
+.source :global(::highlight(email-source-entity)) {
+    color: #bd93f9;
+}
+
+.source :global(::highlight(email-source-comment)) {
+    color: #8592c4;
 }

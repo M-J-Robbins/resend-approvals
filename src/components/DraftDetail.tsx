@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { api, ApiError, type DraftView } from "@/lib/client/api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { api, ApiError, type DraftView, type Sender } from "@/lib/client/api";
 import { absoluteTime, formatCount, relativeTime, shortHash } from "@/lib/client/format";
+import { previewText } from "@/lib/client/previewText";
 import { Button } from "./Button";
 import { DraftActions } from "./DraftActions";
 import { EmailPreview } from "./EmailPreview";
@@ -40,6 +41,9 @@ export function DraftDetail({
   // a newer revision is held in `newer` until the reviewer chooses to reload.
   const [view, setView] = useState<DraftView | null>(null);
   const [newer, setNewer] = useState<DraftView | null>(null);
+  // Fixed server-side and the same for every draft, so it is kept apart from
+  // `view` (approve and reject responses don't carry it).
+  const [sender, setSender] = useState<Sender | null>(null);
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [now, setNow] = useState(() => Date.now());
   const [paused, setPaused] = useState(false);
@@ -54,7 +58,8 @@ export function DraftDetail({
     async (mode: "initial" | "reload" | "poll") => {
       if (mode === "initial") setLoad({ kind: "loading" });
       try {
-        const latest = await api.getDraft(id);
+        const { sender: from, ...latest } = await api.getDraft(id);
+        setSender(from);
         setNow(Date.now());
         const shown = viewRef.current;
         if (mode !== "poll" || !shown || shown.revision.id === latest.revision.id) {
@@ -166,9 +171,25 @@ export function DraftDetail({
               </time>
             </span>
           </div>
-          <h2 id="draft-subject" ref={headingRef} tabIndex={-1} className={styles.subject}>
-            {revision.subject}
-          </h2>
+          <dl className={styles.envelope}>
+            <div className={styles.envelopeRow}>
+              <dt>From</dt>
+              <dd>{sender && <SenderLine sender={sender} />}</dd>
+            </div>
+            <div className={styles.envelopeRow}>
+              <dt>To</dt>
+              <dd>
+                <Recipients key={revision.id} draftId={view.id} revision={revision} refreshKey={view.send?.updated_at} />
+              </dd>
+            </div>
+          </dl>
+          {/* Subject and preview text sit together, as in an inbox. */}
+          <div className={styles.subjectBlock}>
+            <h2 id="draft-subject" ref={headingRef} tabIndex={-1} className={styles.subject}>
+              {revision.subject}
+            </h2>
+            <PreviewText html={revision.html} />
+          </div>
         </header>
 
         <DraftActions
@@ -181,8 +202,6 @@ export function DraftDetail({
           barSlot={barSlot}
         />
 
-        <Recipients key={revision.id} draftId={view.id} revision={revision} refreshKey={view.send?.updated_at} />
-
         <EmailPreview html={revision.html} subject={revision.subject} />
 
         <ReviewOutcome view={view} />
@@ -192,6 +211,35 @@ export function DraftDetail({
 
       {/* Outside the article so the panel spans the whole pane, not just the content width. */}
       <div ref={setBarSlot} className={styles.barSlot} />
+    </>
+  );
+}
+
+/** The snippet an inbox shows after the subject, derived from the HTML. */
+function PreviewText({ html }: { html: string }) {
+  const { text, truncated } = useMemo(() => previewText(html), [html]);
+  return (
+    <p className={styles.previewText}>
+      <span className={styles.visuallyHidden}>Preview text: </span>
+      {text ? (
+        <>
+          {text}
+          {truncated && "…"}
+        </>
+      ) : (
+        <span className={styles.noPreview}>No text in the email body</span>
+      )}
+    </p>
+  );
+}
+
+/** "Name <address>", as a mail client shows it. The address alone if there's no name. */
+function SenderLine({ sender }: { sender: Sender }) {
+  if (!sender.name) return <span className={styles.address}>{sender.address}</span>;
+  return (
+    <>
+      <span className={styles.senderName}>{sender.name}</span>{" "}
+      <span className={styles.address}>&lt;{sender.address}&gt;</span>
     </>
   );
 }

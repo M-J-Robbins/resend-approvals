@@ -22,6 +22,19 @@ export type Env = z.infer<typeof schema>;
 
 let cached: Env | undefined;
 
+export interface Sender {
+  /** The friendly name, e.g. "Agent Drafts", or null if EMAIL_FROM is a bare address. */
+  name: string | null;
+  address: string;
+}
+
+/** Splits EMAIL_FROM ("Name <address>" or a bare address) for display in the review UI. */
+export function parseSender(from: string): Sender {
+  const match = from.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  if (!match) return { name: null, address: from.trim() };
+  return { name: match[1].trim() || null, address: match[2].trim() };
+}
+
 /** Parsed lazily and cached. Throws a readable error if config is missing. */
 export function env(): Env {
   cached ??= schema.parse(process.env);

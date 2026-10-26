@@ -53,10 +53,13 @@
 
 /*
  * Single column on narrow screens (and at 200% zoom): show the list, or the
- * selected draft with a Back link. The breakpoint mirrors 2 × --sidebar-width;
- * custom properties can't be used inside media queries.
+ * selected draft with a Back link. At 64rem the detail beside the list still
+ * gets at least 40rem (64rem − the 24rem --sidebar-width), enough for its
+ * header, toolbar and a desktop preview. Custom properties can't be used
+ * inside media queries, so DraftDetail.module.css and DraftActions.module.css
+ * repeat the value.
  */
-@media (max-width: 48rem) {
+@media (max-width: 64rem) {
     .main {
         grid-template-columns: minmax(0, 1fr);
     }
