@@ -50,6 +50,7 @@ The review UI is at `/`. Sign in with the reviewer token. From there you can:
 
 - see pending drafts, with their recipient counts
 - inspect a draft like a received email: From, To (searchable, paged recipients), subject and preview text, a sandboxed preview of the HTML and its source, the email's size with a warning near Gmail's 102 KB clipping limit, and the revision history
+- check its review hints: a "Review hints (N)" button next to Approve lists things worth checking (so far: the email's size against Gmail's clipping limit). Each hint can be ignored or added to the review notes. The notes are the reason sent to the agent on rejection, and Approve is turned off while there are any
 - approve or reject it
 - watch sending progress, and resume a send that failed or stalled
 

@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api, ApiError, isConflict, type DraftView } from "@/lib/client/api";
 import { formatCount, parseCount, plural, relativeTime, shortHash } from "@/lib/client/format";
+import { reviewHints, type Hint } from "@/lib/client/hints";
 import { useAnnounce } from "./Announcer";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { Notice } from "./Notice";
+import { ReviewHints, type HintDecision } from "./ReviewHints";
 import { SendErrors, SendProgress } from "./SendProgress";
 import styles from "./DraftActions.module.css";
 
@@ -49,7 +51,10 @@ export function DraftActions({
   const [target, setTarget] = useState<Revision | null>(null);
   const [pending, setPending] = useState<Pending>(null);
   const [error, setError] = useState<ApiError | null>(null);
+  // The review notes: the reject reason, edited in the decision panel (and in
+  // the Reject dialog). While it has content, Approve is turned off.
   const [reason, setReason] = useState("");
+  const [hintDecisions, setHintDecisions] = useState<Record<string, HintDecision>>({});
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [typedCount, setTypedCount] = useState("");
   const [resumeNote, setResumeNote] = useState<string | null>(null);
@@ -59,6 +64,7 @@ export function DraftActions({
   const outcome = useRef<HTMLDivElement>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   const reasonId = useId();
+  const notesId = useId();
   const countId = useId();
 
   useEffect(() => {
@@ -92,7 +98,6 @@ export function DraftActions({
   function open(kind: "approve" | "reject") {
     setError(null);
     setTarget(view.revision);
-    setReason("");
     setReasonError(null);
     setTypedCount("");
     setDialog(kind);
@@ -148,6 +153,8 @@ export function DraftActions({
     try {
       const next = await api.reject(view.id, target.id, trimmed);
       setDialog(null);
+      setReason("");
+      setHintDecisions({});
       succeeded(next);
       announce("Draft rejected. The agent can see your reason.");
     } catch (e) {
@@ -187,6 +194,34 @@ export function DraftActions({
   }
 
   const count = view.revision.recipient_count;
+  const hasNotes = reason.trim() !== "";
+
+  const { html, subject } = view.revision;
+  const hints = useMemo(() => reviewHints({ html, subject }), [html, subject]);
+
+  // A hint goes into the notes as its own line, so it can be taken out again.
+  const noteLine = (hint: Hint) => `- ${hint.reviewNote}`;
+  const decide = (hint: Hint, decision: HintDecision | null) =>
+    setHintDecisions((all) => {
+      const next = { ...all };
+      if (decision) next[hint.id] = decision;
+      else delete next[hint.id];
+      return next;
+    });
+  const hintActions = {
+    onIgnore: (hint: Hint) => decide(hint, "ignored"),
+    onRestore: (hint: Hint) => decide(hint, null),
+    onAdd: (hint: Hint) => {
+      setReason((notes) => (notes.trim() ? `${notes.trimEnd()}\n${noteLine(hint)}` : noteLine(hint)));
+      decide(hint, "added");
+      announce("Added to the review notes. Approve is turned off while there are notes.");
+    },
+    onRemove: (hint: Hint) => {
+      // If the reviewer edited the line, it no longer matches and stays in the notes.
+      setReason((notes) => notes.split("\n").filter((line) => line !== noteLine(hint)).join("\n").trim());
+      decide(hint, null);
+    },
+  };
 
   // Clears any error first: it was about the revision being replaced.
   const reload = () => {
@@ -209,7 +244,14 @@ export function DraftActions({
       title="Your decision"
       actions={
         <>
-          <Button ref={approveBtn} variant="primary" disabled={pending !== null} onClick={() => open("approve")}>
+          <ReviewHints hints={hints} decisions={hintDecisions} {...hintActions} />
+          <Button
+            ref={approveBtn}
+            variant="primary"
+            disabled={pending !== null || hasNotes}
+            aria-describedby={hasNotes ? `${notesId}-blocked` : undefined}
+            onClick={() => open("approve")}
+          >
             Approve and send…
           </Button>
           {/* Secondary, not danger: red text on a tinted notice is under 4.5:1 in light
@@ -227,6 +269,29 @@ export function DraftActions({
           : `an individual copy of this email to each of ${formatCount(count)} recipients`}{" "}
         through Resend straight away.
       </p>
+      <div className={styles.field}>
+        <label htmlFor={notesId} className={styles.label}>
+          Review notes
+        </label>
+        <textarea
+          id={notesId}
+          className={styles.notes}
+          rows={3}
+          maxLength={1000}
+          value={reason}
+          disabled={pending !== null}
+          onChange={(e) => setReason(e.target.value)}
+          aria-describedby={`${notesId}-help`}
+        />
+        <p id={`${notesId}-help`} className={styles.help}>
+          Sent to the agent as the reason if you reject. Add hints from Review hints, or type your own.
+        </p>
+        {hasNotes && (
+          <p id={`${notesId}-blocked`} className={styles.help}>
+            Approve is turned off while there are review notes. Reject with them, or clear them to approve.
+          </p>
+        )}
+      </div>
     </Notice>
   );
 
