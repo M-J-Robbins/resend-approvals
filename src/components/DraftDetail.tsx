@@ -71,9 +71,11 @@ export function DraftDetail({
     [id],
   );
 
+  // Workspace keys this component by draft id, so a different draft remounts it
+  // with fresh state; only the first fetch is needed here.
   useEffect(() => {
-    setView(null);
-    setNewer(null);
+    // The rule can't see that the fetch sets state once the request settles.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchDraft("initial");
   }, [fetchDraft]);
 
@@ -169,26 +171,9 @@ export function DraftDetail({
           </h2>
         </header>
 
-        {newer && (
-          <Notice
-            tone="warning"
-            title={`The agent revised this draft (now revision ${newer.revision.number})`}
-            actions={
-              <Button variant="primary" size="sm" onClick={() => void fetchDraft("reload")}>
-                Reload draft
-              </Button>
-            }
-          >
-            <p>
-              You are looking at revision {revision.number}, which can no longer be approved or rejected.
-              Reload to review the new revision.
-            </p>
-          </Notice>
-        )}
-
         <DraftActions
           view={view}
-          stale={newer !== null}
+          newerRevision={newer?.revision.number ?? null}
           now={now}
           onUpdated={onUpdated}
           onReload={() => void fetchDraft("reload")}

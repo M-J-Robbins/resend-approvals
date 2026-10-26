@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { api, ApiError, type DraftView, type RecipientPage } from "@/lib/client/api";
 import { formatCount, plural } from "@/lib/client/format";
 import { useAnnounce } from "./Announcer";
@@ -100,9 +100,15 @@ export function Recipients({
     return () => inFlight.current?.abort();
   }, [load, open]);
 
+  // Only a progress change triggers this background refresh, not a change to
+  // `load` or `open` (the effect above handles those).
+  const refreshInBackground = useEffectEvent(() => {
+    if (open) void load(true);
+  });
   useEffect(() => {
-    if (refreshKey && open) void load(true);
-    // Only a progress change triggers this background refresh, not `load` itself.
+    // A background load sets state only once the request settles, which the rule can't see.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (refreshKey) refreshInBackground();
   }, [refreshKey]);
 
   function go(nextOffset: number) {

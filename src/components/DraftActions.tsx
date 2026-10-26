@@ -21,7 +21,7 @@ const STALLED_AFTER_MS = 2 * 60 * 1000;
 
 export function DraftActions({
   view,
-  stale,
+  newerRevision,
   now,
   onUpdated,
   onReload,
@@ -29,8 +29,8 @@ export function DraftActions({
   barSlot,
 }: {
   view: DraftView;
-  /** A newer revision exists; the shown one can no longer be decided. */
-  stale: boolean;
+  /** The number of a newer revision, if the agent revised the draft while it was open. */
+  newerRevision: number | null;
   /** Time of the last refresh, for "no progress since". */
   now: number;
   onUpdated: (next: DraftView) => void;
@@ -80,7 +80,14 @@ export function DraftActions({
     }
   }, [view.status, view.send, announce]);
 
-  const decidable = view.status === "pending_approval" && !stale;
+  // Announce a revision that arrives while the reviewer is looking: the notice
+  // that replaces the decision is at the bottom of the pane, possibly off-screen
+  // for a screen reader user.
+  useEffect(() => {
+    if (newerRevision !== null) {
+      announce(`The agent revised this draft. Reload to review revision ${newerRevision}.`);
+    }
+  }, [newerRevision, announce]);
 
   function open(kind: "approve" | "reject") {
     setError(null);
@@ -181,15 +188,13 @@ export function DraftActions({
 
   const count = view.revision.recipient_count;
 
-  const errorNotice = error && (
-    <ActionError
-      error={error}
-      onReload={() => {
-        setError(null);
-        onReload();
-      }}
-    />
-  );
+  // Clears any error first: it was about the revision being replaced.
+  const reload = () => {
+    setError(null);
+    onReload();
+  };
+
+  const errorNotice = error && <ActionError error={error} onReload={reload} />;
 
   const outcomeNotice = (
     <div ref={outcome} tabIndex={-1} className={styles.outcome}>
@@ -204,12 +209,12 @@ export function DraftActions({
       title="Your decision"
       actions={
         <>
-          <Button ref={approveBtn} variant="primary" disabled={!decidable || pending !== null} onClick={() => open("approve")}>
+          <Button ref={approveBtn} variant="primary" disabled={pending !== null} onClick={() => open("approve")}>
             Approve and send…
           </Button>
           {/* Secondary, not danger: red text on a tinted notice is under 4.5:1 in light
               mode. The Reject dialog's confirm button keeps the danger style. */}
-          <Button ref={rejectBtn} variant="secondary" disabled={!decidable || pending !== null} onClick={() => open("reject")}>
+          <Button ref={rejectBtn} variant="secondary" disabled={pending !== null} onClick={() => open("reject")}>
             Reject…
           </Button>
         </>
@@ -235,8 +240,31 @@ export function DraftActions({
           <div className={styles.panel} role="region" aria-label="Decision" tabIndex={0}>
             {/* Same width and side padding as the draft, so the two line up. */}
             <div className={styles.panelInner}>
-              {errorNotice}
-              {view.status === "pending_approval" ? decisionBar : outcomeNotice}
+              {/* A refused decision because the agent revised the draft says the same
+                  thing as the revised notice below, so show only one of them. */}
+              {!(newerRevision !== null && error && isConflict(error)) && errorNotice}
+              {/* A shown revision that has been replaced can't be decided, so the
+                  reload notice takes the place of the decision (or outcome). */}
+              {newerRevision !== null ? (
+                <Notice
+                  tone="warning"
+                  title={`The agent revised this draft (now revision ${newerRevision})`}
+                  actions={
+                    <Button variant="primary" onClick={reload}>
+                      Reload draft
+                    </Button>
+                  }
+                >
+                  <p>
+                    You are looking at revision {view.revision.number}, which can no longer be approved or
+                    rejected. Reload to review the new revision.
+                  </p>
+                </Notice>
+              ) : view.status === "pending_approval" ? (
+                decisionBar
+              ) : (
+                outcomeNotice
+              )}
             </div>
           </div>,
           barSlot,
