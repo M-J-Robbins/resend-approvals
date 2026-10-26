@@ -151,7 +151,7 @@
     translate: 0 0.15em;
 }
 
-/* Portrait / landscape toggle: an icon button, pressed in landscape. */
+/* Portrait / landscape toggle: an icon button, pressed in landscape. Only the icon's turn shows the state. */
 .rotate {
     display: inline-grid;
     place-items: center;
@@ -168,11 +168,6 @@
 .rotate:hover {
     color: var(--text-emphasis);
     background: var(--bg-interactive);
-}
-
-.rotate[aria-pressed="true"] {
-    background: var(--bg-accent);
-    color: var(--text-on-accent);
 }
 
 .rotateIcon {
