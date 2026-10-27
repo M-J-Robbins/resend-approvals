@@ -10,6 +10,9 @@ import { sizeHints } from "./size";
 import type { Hint, HintInput } from "./types";
 
 export { contrastHints } from "./a11y/contrast";
+export { imageHints } from "./images/checks";
+export { collectImages } from "./images/collect";
+export { measureImages } from "./images/measure";
 export type { Hint, HintInput, HintRating, HintSeverity } from "./types";
 
 /** Every check, in the order their hints are listed. Add new checks here. */

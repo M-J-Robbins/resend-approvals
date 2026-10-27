@@ -15,8 +15,12 @@ export interface Hint {
   rating?: HintRating;
   title: string;
   detail: string;
-  /** The line "Add to review" puts in the review notes, written for the agent that will revise the draft. */
-  reviewNote: string;
+  /**
+   * The line "Add to review" puts in the review notes, written for the agent
+   * that will revise the draft. Without one the hint is a note for the
+   * reviewer only: it has no "Add to review" and isn't counted in "Review hints (N)".
+   */
+  reviewNote?: string;
 }
 
 /** What the checks look at: the revision the reviewer is deciding on. */

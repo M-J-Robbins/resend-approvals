@@ -208,7 +208,7 @@ export function DraftActions({
   );
 
   // A hint goes into the notes as its own line, so it can be taken out again.
-  const noteLine = (hint: Hint) => `- ${hint.reviewNote}`;
+  const noteLine = (hint: Hint) => `- ${hint.reviewNote ?? hint.title}`;
   const decide = (hint: Hint, decision: HintDecision | null) =>
     setHintDecisions((all) => {
       const next = { ...all };
