@@ -27,6 +27,8 @@ export interface ImageFacts {
   natural: { width: number; height: number };
   /** The size it's shown at in CSS pixels, or null if it isn't shown. */
   display: { width: number; height: number } | null;
+  /** It was requested and nothing usable came back (a 404, a dead server, not an image). */
+  failed: boolean;
 }
 
 /** What a HEAD request found out, or null if it couldn't be read. */
@@ -82,7 +84,9 @@ export function imageHints(images: ImageFacts[], sizes: Map<string, ImageSize>):
     const size = sizes.get(url);
     return size ? [{ url, ...size }] : [];
   });
-  const unmeasured = urls.filter((url) => !sizes.get(url));
+  // An image that didn't load has its own hint; its size doesn't matter.
+  const failedUrls = new Set(images.filter((i) => i.failed).map((i) => i.url));
+  const unmeasured = urls.filter((url) => !sizes.get(url) && !failedUrls.has(url));
 
   // Total: each file once, however many times it's used (it downloads once).
   const total = measured.reduce((sum, i) => sum + i.bytes, 0);
@@ -171,6 +175,19 @@ export function imageHints(images: ImageFacts[], sizes: Map<string, ImageSize>):
       title: `${upscaled.length === 1 ? "An image is" : `${upscaled.length} images are`} shown larger than ${upscaled.length === 1 ? "its" : "their"} file`,
       detail: `${list}. Stretched images look blurry; on retina screens they need to be 2× the size they're shown at to look sharp.`,
       reviewNote: `Use larger image files (ideally 2× the size they're shown at) so these don't look blurry: ${list}.`,
+    });
+  }
+
+  // https only: http: images are already warned about from the HTML, and may be blocked here as mixed content.
+  const failed = [...new Set(images.filter((i) => i.failed && i.url.startsWith("https:")).map((i) => i.url))];
+  if (failed.length > 0) {
+    const list = examples(failed.map(name), Infinity);
+    hints.push({
+      id: "images-failed",
+      severity: "warning",
+      title: `${failed.length === 1 ? "An image" : `${failed.length} images`} didn't load`,
+      detail: `${list}. The request failed or didn't return an image: a wrong URL, an expired link, or a server that is down (which may be temporary).`,
+      reviewNote: `These images didn't load; check their URLs: ${list}.`,
     });
   }
 

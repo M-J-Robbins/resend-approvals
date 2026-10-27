@@ -4,10 +4,11 @@ import { imageFormat, imageHints, imageName, type ImageFacts, type ImageFormat, 
 // The facts come from the rendered analysis frame and the sizes from HEAD
 // requests (both checked in Chrome); these tests cover the rules on top.
 const KB = 1024;
-const img = (url: string, natural: [number, number], display: [number, number] | null = natural): ImageFacts => ({
+const img = (url: string, natural: [number, number], display: [number, number] | null = natural, failed = false): ImageFacts => ({
   url,
   natural: { width: natural[0], height: natural[1] },
   display: display && { width: display[0], height: display[1] },
+  failed,
 });
 const sized = (entries: [string, number, ImageFormat][]) =>
   new Map<string, ImageSize>(entries.map(([url, bytes, format]) => [url, { bytes, format }]));
@@ -110,5 +111,21 @@ describe("image names in hints", () => {
   it("drops the scheme, and keeps the host and file name of long URLs", () => {
     expect(imageName("https://i.test/a.jpg?w=600")).toBe("i.test/a.jpg?w=600");
     expect(imageName(`https://upload.example.org/${"deep/".repeat(12)}hero-image.jpg`)).toBe("upload.example.org/…/hero-image.jpg");
+  });
+});
+
+describe("image hints: didn't load", () => {
+  it("warns about https images that failed, each URL once", () => {
+    const images = [img("https://i.test/gone.jpg", [0, 0], [600, 400], true), img("https://i.test/gone.jpg", [0, 0], null, true)];
+    const hint = imageHints(images, new Map([["https://i.test/gone.jpg", null]])).find((h) => h.id === "images-failed");
+    expect(hint).toMatchObject({ severity: "warning", title: "An image didn't load" });
+    expect(hint?.detail).toContain("i.test/gone.jpg.");
+    // Not also listed as "sizes not available".
+    expect(ids(imageHints(images, new Map()))).toEqual(["images-failed"]);
+  });
+
+  it("leaves http images to the warning from the HTML", () => {
+    const hints = imageHints([img("http://i.test/a.jpg", [0, 0], [600, 400], true)], new Map([["http://i.test/a.jpg", null]]));
+    expect(ids(hints)).not.toContain("images-failed");
   });
 });

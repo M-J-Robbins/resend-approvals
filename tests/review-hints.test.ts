@@ -396,3 +396,43 @@ describe("review hints: colour contrast maths", () => {
     expect(blend([1, 0, 0, 1], [0, 0, 1])).toEqual([1, 0, 0]);
   });
 });
+
+describe("review hints: image sources that won't load for recipients", () => {
+  const page = (body: string) => `<html lang="en"><head><title>T</title></head><body><div dir="ltr" lang="en"><h1>Hi</h1>${body}</div></body></html>`;
+  const sourceHint = (body: string, id: string) => hint(page(body), id);
+  const broken = (body: string) => sourceHint(body, "images-broken-source");
+  const insecure = (body: string) => sourceHint(body, "images-insecure-source");
+
+  it("passes https and data: images", () => {
+    expect(broken('<img src="https://i.test/a.jpg" alt=""><img src="data:image/png;base64,AA" alt="">')).toBeUndefined();
+    expect(insecure('<img src="https://i.test/a.jpg" alt="">')).toBeUndefined();
+  });
+
+  it("is an error for relative paths, cid:, file: and a missing src", () => {
+    const found = broken('<img src="images/hero.jpg" alt=""><img src="/logo.png" alt=""><img src="CID:part1" alt=""><img src="file:///C:/a.png" alt=""><img alt="">');
+    expect(found).toMatchObject({ severity: "error", title: "5 images won't load for recipients" });
+    expect(found?.detail).toContain("images/hero.jpg (relative path), /logo.png (relative path), CID:part1 (cid: attachment) and 2 more");
+  });
+
+  it("is a warning for http: and protocol-relative URLs", () => {
+    const found = insecure('<img src="http://i.test/a.jpg" alt=""><img src="//i.test/b.jpg" alt="">');
+    expect(found).toMatchObject({ severity: "warning", title: "2 images may not load in every email client" });
+    expect(found?.detail).toContain("http://i.test/a.jpg (http:), //i.test/b.jpg (no protocol)");
+  });
+
+  it("reads srcset and <picture> sources, and lists each URL once", () => {
+    const found = broken(
+      '<picture><source srcset="dark.png 1x, https://i.test/dark@2x.png 2x" media="(prefers-color-scheme: dark)">' +
+        '<img src="https://i.test/a.jpg" srcset="a@2x.jpg 2x" alt=""></picture><img src="a@2x.jpg" alt="">',
+    );
+    expect(found?.detail).toContain("dark.png (relative path), a@2x.jpg (relative path).");
+  });
+
+  it("accepts an image with only a srcset", () => {
+    expect(broken('<img srcset="https://i.test/a.jpg 1x" alt="">')).toBeUndefined();
+  });
+
+  it("skips tracking pixels", () => {
+    expect(broken('<img src="open.gif" width="1" height="1" alt=""><img src="cid:x" style="width:0;height:0" alt="">')).toBeUndefined();
+  });
+});

@@ -40,7 +40,8 @@ export function HintAnalysisFrame({ html, onHints }: { html: string; onHints: (h
         onHints(contrast);
         const images = collectImages(doc);
         if (images.length === 0) return;
-        const sizes = await measureImages(images.map((i) => i.url));
+        // No HEAD for images that didn't load: they have nothing to measure.
+        const sizes = await measureImages(images.filter((i) => !i.failed).map((i) => i.url));
         onHints([...contrast, ...imageHints(images, sizes)]);
       }}
     />

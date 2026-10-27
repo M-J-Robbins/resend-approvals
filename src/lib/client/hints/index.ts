@@ -6,6 +6,7 @@ import { layoutTableHints } from "./a11y/layoutTables";
 import { linkPurposeHints } from "./a11y/linkPurpose";
 import { linkTextHints } from "./a11y/linkText";
 import { wrapperDirHints, wrapperLangHints } from "./a11y/wrappers";
+import { imageSourceHints } from "./images/sources";
 import { sizeHints } from "./size";
 import type { Hint, HintInput } from "./types";
 
@@ -27,6 +28,7 @@ const CHECKS: ((input: HintInput) => Hint[])[] = [
   imageAltHints,
   documentTitleHints,
   linkPurposeHints,
+  imageSourceHints,
 ];
 
 const ORDER = { error: 0, warning: 1, info: 2 } as const;
