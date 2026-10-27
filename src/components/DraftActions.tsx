@@ -4,10 +4,11 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api, ApiError, isConflict, type DraftView } from "@/lib/client/api";
 import { formatCount, parseCount, plural, relativeTime, shortHash } from "@/lib/client/format";
-import { reviewHints, type Hint } from "@/lib/client/hints";
+import { reviewHints, sortHints, type Hint } from "@/lib/client/hints";
 import { useAnnounce } from "./Announcer";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
+import { HintAnalysisFrame } from "./HintAnalysisFrame";
 import { Notice } from "./Notice";
 import { ReviewHints, type HintDecision } from "./ReviewHints";
 import { SendErrors, SendProgress } from "./SendProgress";
@@ -197,7 +198,14 @@ export function DraftActions({
   const hasNotes = reason.trim() !== "";
 
   const { html, subject } = view.revision;
-  const hints = useMemo(() => reviewHints({ html, subject }), [html, subject]);
+  const staticHints = useMemo(() => reviewHints({ html, subject }), [html, subject]);
+  // Contrast hints arrive later, from the hidden analysis frame; kept with the
+  // HTML they were read from, so a new revision never shows the old ones.
+  const [renderedHints, setRenderedHints] = useState<{ html: string; hints: Hint[] } | null>(null);
+  const hints = useMemo(
+    () => (renderedHints?.html === html ? sortHints([...staticHints, ...renderedHints.hints]) : staticHints),
+    [staticHints, renderedHints, html],
+  );
 
   // A hint goes into the notes as its own line, so it can be taken out again.
   const noteLine = (hint: Hint) => `- ${hint.reviewNote}`;
@@ -297,6 +305,10 @@ export function DraftActions({
 
   return (
     <>
+      {/* Outside the panel: an off-screen frame inside its scroll box could make it scroll. */}
+      {view.status === "pending_approval" && (
+        <HintAnalysisFrame key={view.revision.id} html={html} onHints={(found) => setRenderedHints({ html, hints: found })} />
+      )}
       {/* Every status (the decision, or the outcome) and any error from acting on
           it live in the panel pinned to the bottom of the pane. */}
       {barSlot &&

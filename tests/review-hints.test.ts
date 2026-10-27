@@ -3,6 +3,8 @@
 import { describe, expect, it } from "vitest";
 import { GMAIL_CLIP_BYTES, NEAR_CLIP_BYTES, gmailClipStatus } from "@/lib/client/emailSize";
 import { reviewHints } from "@/lib/client/hints";
+import { blend, requiredRatio } from "@/lib/client/hints/a11y/contrast";
+import { linkName } from "@/lib/client/hints/a11y/linkText";
 
 const htmlOfBytes = (bytes: number) => "a".repeat(bytes);
 // Only the size hint; these emails would get other hints too (their text isn't wrapped).
@@ -199,5 +201,198 @@ describe("review hints: level-one heading", () => {
 
   it('accepts an <h1> with an explicit role="heading" aria-level="1"', () => {
     expect(headingHint('<h1 role="heading" aria-level="1">Welcome</h1>')).toBeUndefined();
+  });
+});
+
+describe("review hints: links have discernible text", () => {
+  const linkHint = (body: string) => hint(`<html lang="en"><body><div dir="ltr" lang="en"><h1>Hi</h1>${body}</div></body></html>`, "a11y-link-name");
+  const nameOf = (body: string) => {
+    const doc = new DOMParser().parseFromString(`<body>${body}</body>`, "text/html");
+    return linkName(doc.querySelector("a")!);
+  };
+
+  it("is a serious hint naming the links without text", () => {
+    const found = linkHint('<a href="https://a.test/1"></a><a href="https://a.test/2">Shop</a><a href="https://a.test/3"><img src="x.png"></a>');
+    expect(found).toMatchObject({ severity: "error", rating: "serious" });
+    expect(found?.detail).toContain("2 of 3 links");
+    expect(found?.reviewNote).toContain("https://a.test/1, https://a.test/3");
+  });
+
+  it("passes links with text, alt text, aria-label, aria-labelledby or title", () => {
+    expect(linkHint('<a href="#">Shop</a>')).toBeUndefined();
+    expect(linkHint('<a href="#"><img src="x.png" alt="Shop"></a>')).toBeUndefined();
+    expect(linkHint('<a href="#" aria-label="Shop"><img src="x.png" alt=""></a>')).toBeUndefined();
+    expect(linkHint('<span id="l" hidden>Shop</span><a href="#" aria-labelledby="l"></a>')).toBeUndefined();
+    expect(linkHint('<a href="#" title="Shop"></a>')).toBeUndefined();
+  });
+
+  it("reads text and alt text in document order, as a screen reader does", () => {
+    expect(nameOf('<a href="#">Read <img src="x" alt="our"> blog</a>')).toBe("Read our blog");
+    expect(nameOf('<a href="#"><img alt="Logo"><span>Home</span><img alt="arrow"></a>')).toBe("Logo Home arrow");
+    expect(nameOf('<a href="#"><div>Line one</div><div>line two</div></a>')).toBe("Line one line two");
+    expect(nameOf('<a href="#">Sh<b>op</b></a>')).toBe("Shop");
+  });
+
+  it("uses a descendant's aria-label in place of its content", () => {
+    expect(nameOf('<a href="#">Go <span aria-label="to the shop">→</span></a>')).toBe("Go to the shop");
+  });
+
+  it("doesn't count hidden text or the alt text of hidden images", () => {
+    expect(linkHint('<a href="#"><span style="display: none">Shop</span></a>')).toBeDefined();
+    expect(linkHint('<a href="#"><span aria-hidden="true">Shop</span></a>')).toBeDefined();
+    expect(linkHint('<a href="#"><span hidden>Shop</span></a>')).toBeDefined();
+    expect(linkHint('<a href="#"><img alt="Shop" style="DISPLAY:NONE"></a>')).toBeDefined();
+    expect(linkHint('<a href="#"><span style="visibility:hidden"><img alt="Shop"></span></a>')).toBeDefined();
+    expect(nameOf('<a href="#">Shop <span style="display:none">secret</span>now</a>')).toBe("Shop now");
+  });
+
+  it("counts visible text inside a visibility:hidden parent, and visually hidden text", () => {
+    expect(nameOf('<a href="#"><span style="visibility:hidden"><b style="visibility:visible">Shop</b></span></a>')).toBe("Shop");
+    expect(nameOf('<a href="#"><span style="font-size:0;opacity:0">Shop</span></a>')).toBe("Shop");
+  });
+
+  it("treats whitespace and invisible padding characters as no text", () => {
+    expect(linkHint('<a href="#">&nbsp; &#8203;&#847;</a>')).toBeDefined();
+  });
+
+  it("skips links nobody can reach, and anchors without href", () => {
+    expect(linkHint('<div style="display:none"><a href="#"></a></div>')).toBeUndefined();
+    expect(linkHint('<a name="top"></a>')).toBeUndefined();
+  });
+});
+
+describe("review hints: <html> has a lang attribute", () => {
+  const langIds = (html: string) =>
+    reviewHints({ html, subject: "x" })
+      .map((h) => h.id)
+      .filter((id) => id.startsWith("a11y-html-lang"));
+  const page = (htmlAttrs: string) => `<html ${htmlAttrs}><body><div dir="ltr" lang="en"><h1>Hi</h1></div></body></html>`;
+
+  it("passes a valid language tag, in any case", () => {
+    expect(langIds(page('lang="en"'))).toEqual([]);
+    expect(langIds(page('lang=" EN-gb "'))).toEqual([]);
+  });
+
+  it("is a serious hint when lang is missing, empty or not a valid tag", () => {
+    expect(langIds(page(""))).toEqual(["a11y-html-lang"]);
+    expect(langIds(page('lang=""'))).toEqual(["a11y-html-lang"]);
+    expect(langIds('<div dir="ltr" lang="en"><h1>No html tag</h1></div>')).toEqual(["a11y-html-lang"]);
+    const invalid = hint(page('lang="english"'), "a11y-html-lang");
+    expect(invalid).toMatchObject({ severity: "error", rating: "serious" });
+    expect(invalid?.detail).toContain('lang="english"');
+  });
+
+  it("doesn't count lang on <body> or the wrapper", () => {
+    expect(langIds('<html><body lang="en"><div dir="ltr" lang="en"><h1>Hi</h1></div></body></html>')).toEqual(["a11y-html-lang"]);
+  });
+
+  it('is a mild hint for lang="und"', () => {
+    expect(langIds(page('lang="UND"'))).toEqual(["a11y-html-lang-und"]);
+    expect(hint(page('lang="und"'), "a11y-html-lang-und")).toMatchObject({ severity: "info", rating: "mild" });
+  });
+});
+
+describe("review hints: images have alt text", () => {
+  const altHint = (body: string) => hint(`<html lang="en"><body><div dir="ltr" lang="en"><h1>Hi</h1>${body}</div></body></html>`, "a11y-image-alt");
+
+  it("passes images with alt text, and decorative images with an empty alt", () => {
+    expect(altHint('<img src="a.png" alt="Logo"><img src="b.png" alt=""><img src="c.png" alt>')).toBeUndefined();
+  });
+
+  it("is a critical hint listing the images without an alt attribute", () => {
+    const found = altHint('<img src="a.png"><img src="b.png" alt="B"><img src="c.png" ALT><img src="d.png" title="D">');
+    expect(found).toMatchObject({ severity: "error", rating: "critical" });
+    expect(found?.detail).toContain("2 of 4 images");
+    expect(found?.reviewNote).toContain("a.png, d.png");
+  });
+
+  it("shortens long sources and counts the rest", () => {
+    const found = altHint(`<img src="data:image/png;base64,${"A".repeat(200)}"><img src="2"><img src="3"><img src="4">`);
+    expect(found?.detail).toContain(`data:image/png;base64,${"A".repeat(35)}…, 2, 3 and 1 more`);
+  });
+});
+
+describe("review hints: document has a <title>", () => {
+  const titleHint = (head: string, body = "") =>
+    hint(`<html lang="en"><head>${head}</head><body><div dir="ltr" lang="en"><h1>Hi</h1>${body}</div></body></html>`, "a11y-document-title");
+
+  it("passes a <title> in <head> with text", () => {
+    expect(titleHint("<title>Your order</title>")).toBeUndefined();
+    expect(titleHint("<meta charset='utf-8'><title> x </title>")).toBeUndefined();
+  });
+
+  it("is a serious hint when there is no <title>", () => {
+    expect(titleHint("")).toMatchObject({ severity: "error", rating: "serious" });
+    expect(titleHint("")?.detail).toContain("no <title>");
+  });
+
+  it("doesn't count an empty or whitespace-only <title>", () => {
+    expect(titleHint("<title></title>")?.detail).toContain("is empty");
+    expect(titleHint("<title> &nbsp;\n </title>")?.detail).toContain("is empty");
+  });
+
+  it("doesn't count a <title> in <body>", () => {
+    expect(titleHint("", "<title>In the body</title>")).toBeDefined();
+  });
+});
+
+describe("review hints: link text is descriptive", () => {
+  const purposeHint = (body: string, id: string) =>
+    hint(`<html lang="en"><head><title>T</title></head><body><div dir="ltr" lang="en"><h1>Hi</h1>${body}</div></body></html>`, id);
+  const generic = (body: string) => purposeHint(body, "a11y-link-text-generic");
+  const repeated = (body: string) => purposeHint(body, "a11y-link-text-repeated");
+
+  it("flags common generic phrases, ignoring case, punctuation and arrows", () => {
+    const found = generic('<a href="/a">Click here</a><a href="/b">READ MORE ›</a><a href="/c">Learn more…</a><a href="/d">Click here</a>');
+    expect(found).toMatchObject({ severity: "warning", rating: "moderate" });
+    expect(found?.detail).toContain("4 links say nothing");
+    expect(found?.detail).toContain('"Click here" ×2, "READ MORE ›", "Learn more…"');
+  });
+
+  it("flags names that are only symbols or a single character", () => {
+    expect(generic('<a href="/a">→</a>')?.detail).toContain('"→"');
+    expect(generic('<a href="/a">»</a><a href="/b">1</a>')?.detail).toContain("2 links");
+  });
+
+  it("only matches the whole name, so descriptive text containing a phrase passes", () => {
+    expect(generic('<a href="/a">Read more about pricing</a><a href="/b">Click here to reset your password</a>')).toBeUndefined();
+  });
+
+  it("uses the accessible name, so an aria-label or alt text counts", () => {
+    expect(generic('<a href="/a" aria-label="Read more about pricing">Read more</a>')).toBeUndefined();
+    expect(generic('<a href="/a"><img src="x" alt="here"></a>')).toBeDefined();
+  });
+
+  it("leaves links without a name to the discernible-text hint", () => {
+    expect(generic('<a href="/a"></a>')).toBeUndefined();
+  });
+
+  it("flags the same text going to different places", () => {
+    const found = repeated('<a href="/1">View product</a><a href="/2">view product!</a><a href="/3">Shop</a>');
+    expect(found).toMatchObject({ severity: "warning", rating: "moderate" });
+    expect(found?.detail).toContain('"View product" ×2');
+  });
+
+  it("passes the same text going to the same place, and leaves generic names to the other hint", () => {
+    expect(repeated('<a href="/1">Shop</a><a href="/1">Shop</a>')).toBeUndefined();
+    expect(repeated('<a href="/1">Read more</a><a href="/2">Read more</a>')).toBeUndefined();
+  });
+});
+
+// The contrast check itself reads a rendered document (computed styles and
+// layout), which happy-dom doesn't provide; it was verified in Chrome. These
+// cover its maths.
+describe("review hints: colour contrast maths", () => {
+  it("uses 3:1 for large text (24px, or 18.66px and bold) and 4.5:1 otherwise", () => {
+    expect(requiredRatio(24, 400)).toBe(3);
+    expect(requiredRatio(23.9, 400)).toBe(4.5);
+    expect(requiredRatio(18.67, 700)).toBe(3);
+    expect(requiredRatio(18.67, 600)).toBe(4.5);
+    expect(requiredRatio(18.6, 700)).toBe(4.5);
+  });
+
+  it("blends a translucent colour over the one below it", () => {
+    expect(blend([0, 0, 0, 0.5], [1, 1, 1])).toEqual([0.5, 0.5, 0.5]);
+    expect(blend([1, 0, 0, 1], [0, 0, 1])).toEqual([1, 0, 0]);
   });
 });
