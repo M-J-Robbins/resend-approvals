@@ -37,8 +37,9 @@ const ORDER = { error: 0, warning: 1, info: 2 } as const;
 export const sortHints = (hints: Hint[]) => [...hints].sort((a, b) => ORDER[a.severity] - ORDER[b.severity]);
 
 /**
- * The hints that need only the HTML. Contrast needs the email rendered, so it
- * comes separately from contrastHints, run on the hidden analysis frame.
+ * The hints that need only the HTML. Contrast and the image size and loading
+ * checks need the email rendered, so they come separately, from the hidden
+ * analysis frame (HintAnalysisFrame).
  */
 export function reviewHints({ html, subject }: { html: string; subject: string }): Hint[] {
   const doc = new DOMParser().parseFromString(html, "text/html");

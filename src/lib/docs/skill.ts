@@ -21,13 +21,13 @@ An approval service for email. You prepare a draft: **one recipients list, one s
 
 - Base URL: ${origin}. Every path in these docs and in §next_actions§ is relative to it.
 - Auth: header §Authorization: Bearer $EMAIL_APPROVALS_API_KEY§. Use the agent API key the user gave you. If you don't have one, ask the user for it.
-- Human review UI: ${origin}/ (humans sign in there with a different credential that you don't have)
-- Machine-readable spec: ${origin}/openapi.json
-- Discovery: §GET ${origin}/api/agent§ needs no key and returns §service§, §summary§, §docs§ (links to §skill§, §openapi§ and §llms_txt§), §auth§, §you_can§ and §you_cannot§.
+- Human review UI: [${origin}/](${origin}/) (humans sign in there with a different credential that you don't have)
+- Machine-readable spec: [${origin}/openapi.json](${origin}/openapi.json)
+- Discovery: [${origin}/api/agent](${origin}/api/agent) (§GET§, no key) returns §service§, §summary§, §docs§ (links to §skill§, §openapi§ and §llms_txt§), §auth§, §you_can§ and §you_cannot§. You don't need it: this skill covers everything it returns.
 
 ## Who can receive email (read this before you send anything)
 
-This deployment sends from Resend's shared testing sender, which only delivers to Resend's test addresses and to the service owner's own address. **Use §delivered@resend.dev§ as the recipient.** §delivered+anything@resend.dev§ (e.g. §delivered+ada@resend.dev§) also works, which gives you several distinct test recipients. Don't use §example.com§ or any real person's address. Any other address fails, and because a batch either fully succeeds or fully fails, one such address fails its whole batch of up to 100 (status §failed§, Resend's error in §send.errors§). Test sends count towards a low daily sending quota, so test with a handful of recipients.${capNote}
+This deployment sends from Resend's shared testing sender, which only delivers to Resend's test addresses. **Use §delivered@resend.dev§ as the recipient.** §delivered+anything@resend.dev§ (e.g. §delivered+ada@resend.dev§) also works, which gives you several distinct test recipients. Don't use §example.com§ or any real person's address. Any other address fails, and because a batch either fully succeeds or fully fails, one such address fails its whole batch of up to 100 (status §failed§, Resend's error in §send.errors§). Test sends count towards a low daily sending quota, so test with a handful of recipients.${capNote}
 
 ## The recipients model
 
@@ -201,6 +201,16 @@ These happen in the review UI. Your key is refused on all of them (403 §agent_c
 - §subject§: one line, at most 998 characters.
 - §html§: the email's HTML, up to about 1 MB, identical for everyone. A fragment such as §<p>Hi</p>§ is fine; a full §<html>§ document works too. No separate plain-text part and no attachments.
 - §from§ is fixed by the service. Sending a §from§ (or any unknown field) is rejected.
+
+## What the reviewer checks
+
+The reviewer reads the whole email and can reject it for any reason, with notes you see in §review.reason§. The review UI also shows them hints about common problems. These are only some of the things a reviewer looks at, but avoiding them makes a first-time approval more likely:
+
+- **Size:** Gmail clips emails whose HTML is over about 102 KB, hiding the rest behind "View entire message". Keep the HTML well under that.
+- **Images:** absolute §https://§ URLs that load (no relative paths, §cid:§, §file:§ or §http:§), an §alt§ attribute on every image (§alt=""§ for decorative ones), and files no bigger than they need to be: under about 100 KB each, under 1.5 MB in total, and no more than twice the size they're shown at.
+- **Accessibility:** §lang§ on §<html>§; the content inside §<body>§ wrapped in an element with §dir§ (§ltr§ or §rtl§) and §lang§; §role="presentation"§ on tables used for layout; a level-one heading; a §<title>§ in §<head>§; link text that says where the link goes (not "click here" or "read more"), and that isn't empty; and text with enough contrast against its background (4.5:1, or 3:1 for large text).
+
+The reviewer can also preview the email at phone sizes and in dark mode, so a layout that breaks on mobile or in dark mode may be rejected too.
 
 ## Using an existing HTML or .eml file
 

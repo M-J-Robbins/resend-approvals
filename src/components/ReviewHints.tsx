@@ -11,7 +11,8 @@ export type HintDecision = "ignored" | "added";
 
 /**
  * "Review hints (N)": a button in the decision panel that opens a popover
- * listing the hints for this revision. N counts the hints not ignored.
+ * listing the hints for this revision. N counts the hints not ignored, and
+ * not notes (hints with nothing to add to the review).
  * Ignored hints move to a collapsed "Ignored" section, where they can be
  * restored. Adding one puts its note in the review notes, which turns
  * Approve off (see DraftActions).

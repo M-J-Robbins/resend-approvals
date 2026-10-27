@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .tile { fill: #000; }
+    .mark { stroke: #fff; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #fff; }
+      .mark { stroke: #000; }
+    }
+  </style>
+  <!-- An envelope with a tick: an email, approved. Black and white, like the UI's accent. -->
+  <rect class="tile" width="32" height="32" rx="7"/>
+  <g class="mark" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 23H8.5A1.5 1.5 0 0 1 7 21.5v-11A1.5 1.5 0 0 1 8.5 9h15a1.5 1.5 0 0 1 1.5 1.5V16"/>
+    <path d="m7.5 10 8.5 6.5 8.5-6.5"/>
+    <path d="m19.5 22 2.5 2.5 4.5-5"/>
+  </g>
+</svg>
