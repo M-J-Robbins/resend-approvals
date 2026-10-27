@@ -34,17 +34,19 @@ export function ReviewHints({
   const id = useId();
   const popoverId = `${id}-hints`;
   const active = hints.filter((h) => decisions[h.id] !== "ignored");
+  // Notes (hints with nothing to add to the review) are listed but not counted.
+  const count = active.filter((h) => h.reviewNote).length;
   const ignored = hints.filter((h) => decisions[h.id] === "ignored");
 
   return (
     <>
-      <Button popoverTarget={popoverId}>Review hints ({active.length})</Button>
+      <Button popoverTarget={popoverId}>Review hints ({count})</Button>
 
       {/* Native popover: the browser handles showing, Escape, light dismiss and returning focus. */}
       <div id={popoverId} popover="auto" role="dialog" aria-labelledby={`${id}-heading`} className={styles.popover}>
         <div className={styles.head}>
           <h4 id={`${id}-heading`} className={styles.heading}>
-            Review hints <span className={styles.count}>({active.length})</span>
+            Review hints <span className={styles.count}>({count})</span>
           </h4>
           <Button size="sm" variant="ghost" popoverTarget={popoverId} popoverTargetAction="hide" aria-keyshortcuts="Escape">
             Close
@@ -74,9 +76,11 @@ export function ReviewHints({
                     <Button size="sm" variant="ghost" onClick={() => onIgnore(hint)}>
                       Ignore
                     </Button>
-                    <Button size="sm" onClick={() => onAdd(hint)}>
-                      Add to review
-                    </Button>
+                    {hint.reviewNote && (
+                      <Button size="sm" onClick={() => onAdd(hint)}>
+                        Add to review
+                      </Button>
+                    )}
                   </>
                 )}
               </HintItem>

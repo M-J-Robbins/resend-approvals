@@ -6,10 +6,14 @@ import { layoutTableHints } from "./a11y/layoutTables";
 import { linkPurposeHints } from "./a11y/linkPurpose";
 import { linkTextHints } from "./a11y/linkText";
 import { wrapperDirHints, wrapperLangHints } from "./a11y/wrappers";
+import { imageSourceHints } from "./images/sources";
 import { sizeHints } from "./size";
 import type { Hint, HintInput } from "./types";
 
 export { contrastHints } from "./a11y/contrast";
+export { imageHints } from "./images/checks";
+export { collectImages } from "./images/collect";
+export { measureImages } from "./images/measure";
 export type { Hint, HintInput, HintRating, HintSeverity } from "./types";
 
 /** Every check, in the order their hints are listed. Add new checks here. */
@@ -24,6 +28,7 @@ const CHECKS: ((input: HintInput) => Hint[])[] = [
   imageAltHints,
   documentTitleHints,
   linkPurposeHints,
+  imageSourceHints,
 ];
 
 const ORDER = { error: 0, warning: 1, info: 2 } as const;
