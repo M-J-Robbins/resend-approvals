@@ -44,7 +44,7 @@ describe("image hints: bytes per pixel", () => {
   const bpp = (format: "jpeg" | "png" | "gif" | "other", bytes: number) =>
     ids(imageHints([img("https://i.test/x", [100, 100])], sized([["https://i.test/x", bytes, format]]))).includes("images-bytes-per-pixel");
 
-  it("uses a limit per format: JPEG 0.15, PNG 0.3, GIF 1, anything else 0.1", () => {
+  it("uses a threshold per format: JPEG 0.15, PNG 0.3, GIF 1, anything else 0.1", () => {
     // 100×100 = 10,000 pixels.
     expect(bpp("jpeg", 1500)).toBe(false);
     expect(bpp("jpeg", 1501)).toBe(true);

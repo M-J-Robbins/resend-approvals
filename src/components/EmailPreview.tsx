@@ -64,7 +64,8 @@ const CLIP_TONE = { near: "warning", over: "error" } as const;
 /**
  * Agent-written HTML is untrusted. It is rendered only inside an iframe with
  * an empty sandbox (no scripts, no same-origin, no popups, no navigation),
- * and otherwise only as escaped text.
+ * and otherwise only as escaped text. The one exception is forced dark, which
+ * adds allow-same-origin (never allow-scripts) so our page can recolour it.
  */
 export function EmailPreview({ html, subject }: { html: string; subject: string }) {
   const id = useId();

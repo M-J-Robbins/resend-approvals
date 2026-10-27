@@ -16,6 +16,7 @@ export function buildLlmsTxt(origin: string, maxRecipients: number): string {
 - Flow: POST /api/agent/drafts, then PUT /api/agent/drafts/{id} to revise, then POST /api/agent/drafts/{id}/submit, then poll GET /api/agent/drafts/{id}. Give the user the draft's review_url.
 - Full recipient list and per-recipient status: GET /api/agent/drafts/{id}/recipients?offset=0&limit=500.
 - After approval, \`send\` reports progress; "sent" means accepted by Resend, not delivered. A partial failure ends as "failed" with send.partial = true, and only a human can resume it.
+- Before submitting, see "What the reviewer checks" in SKILL.md: size, images and accessibility hints the reviewer sees (they can also reject for any other reason).
 - Recipients: the shared testing sender only delivers to delivered@resend.dev (or delivered+anything@resend.dev). Use those; any other address fails.
 - Review UI for humans: ${origin}/
 `;

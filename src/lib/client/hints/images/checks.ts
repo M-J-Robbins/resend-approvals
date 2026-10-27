@@ -7,7 +7,7 @@ import type { Hint } from "../types";
  * image's file and displayed size) and each image's byte size, read with a
  * HEAD request where the image's server allows it (see measure.ts).
  *
- * The limits are deliberately strict, and are a first guess: with more time
+ * The warning thresholds are deliberately strict, and are a first guess: with more time
  * they need more research, and could be set by the user.
  */
 export const TOTAL_LIMIT_BYTES = 1.5 * 1024 * 1024;
@@ -97,7 +97,7 @@ export function imageHints(images: ImageFacts[], sizes: Map<string, ImageSize>):
       severity: "warning",
       title: `Images total ${atLeast}${formatMegabytes(total)}`,
       detail:
-        `The email's images add up to ${atLeast}${formatMegabytes(total)}, over the ${formatMegabytes(TOTAL_LIMIT_BYTES)} limit` +
+        `The email's images add up to ${atLeast}${formatMegabytes(total)}, over the ${formatMegabytes(TOTAL_LIMIT_BYTES)} threshold` +
         `${unmeasured.length > 0 ? ` (${unmeasured.length} more couldn't be measured)` : ""}. Heavy emails load slowly, especially on mobile data.`,
       reviewNote: `Reduce the total size of the images (now ${atLeast}${formatMegabytes(total)}) to under ${formatMegabytes(TOTAL_LIMIT_BYTES)}: compress them, resize them to the size they're shown at, or use fewer.`,
     });
@@ -126,7 +126,7 @@ export function imageHints(images: ImageFacts[], sizes: Map<string, ImageSize>):
   });
   if (heavy.length > 0) {
     const list = examples(
-      heavy.map((i) => `${name(i.url)} (${LABEL[i.format]}, ${i.perPixel.toFixed(2)} bytes per pixel, limit ${i.limit})`),
+      heavy.map((i) => `${name(i.url)} (${LABEL[i.format]}, ${i.perPixel.toFixed(2)} bytes per pixel, threshold ${i.limit})`),
       Infinity,
     );
     hints.push({
