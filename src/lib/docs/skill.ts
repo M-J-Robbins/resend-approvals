@@ -51,7 +51,7 @@ curl -sS -X POST ${origin}/api/agent/drafts \\
 
    The response is the draft (201). Note §id§, §revision.id§, §revision.recipient_count§ and §review_url§. Only the first 10 recipients are returned inline (§revision.recipients_preview§).
 
-2. **Revise** if needed. Send only the fields that change; the rest are kept. A field you send **replaces its current value in full**: there is no append or patch. To add a sentence, send the complete new §html§; to add a recipient, send the complete new §recipients§ list. This creates a new revision. Revising a §pending_approval§ draft withdraws the approval request and returns it to §draft§, so submit the new revision afterwards.
+2. **Revise** if needed. Send only the fields that change; the rest are kept. You can change several fields in one request (for example §subject§ and §recipients§ together), and that is still a single new revision. A field you send **replaces its current value in full**: there is no append or patch. To add a sentence, send the complete new §html§; to add a recipient, send the complete new §recipients§ list. This creates a new revision. Revising a §pending_approval§ draft withdraws the approval request and returns it to §draft§, so submit the new revision afterwards.
 
 §§§bash
 curl -sS -X PUT ${origin}/api/agent/drafts/DRAFT_ID \\
@@ -208,9 +208,10 @@ The reviewer reads the whole email and can reject it for any reason, with notes 
 
 - **Size:** Gmail clips emails whose HTML is over about 102 KB, hiding the rest behind "View entire message". Keep the HTML well under that.
 - **Images:** absolute §https://§ URLs that load (no relative paths, §cid:§, §file:§ or §http:§), an §alt§ attribute on every image (§alt=""§ for decorative ones), and files no bigger than they need to be: under about 100 KB each, under 1.5 MB in total, and no more than twice the size they're shown at.
+- **Preheader:** a hidden preheader (the summary text inboxes show after the subject) is fine. Put it inside the §dir§ and §lang§ wrapper with the rest of the content; the reviewer sees it as the email's preview text.
 - **Accessibility:** §lang§ on §<html>§; the content inside §<body>§ wrapped in an element with §dir§ (§ltr§ or §rtl§) and §lang§; §role="presentation"§ on tables used for layout; a level-one heading; a §<title>§ in §<head>§; link text that says where the link goes (not "click here" or "read more"), and that isn't empty; and text with enough contrast against its background (4.5:1, or 3:1 for large text).
 
-The reviewer can also preview the email at phone sizes and in dark mode, so a layout that breaks on mobile or in dark mode may be rejected too.
+The reviewer can also preview the email at phone sizes and in dark mode, so a layout that breaks on mobile or in dark mode may be rejected too. The dark mode preview applies your §@media (prefers-color-scheme: dark)§ styles, so give text and links readable colours there as well. It can also simulate the forced dark mode of Android and of Gmail on Android, which recolour an email themselves, ignoring your dark styles. Gmail on Android leaves an email alone if it declares §<meta name="color-scheme" content="light only">§.
 
 ## Using an existing HTML or .eml file
 
