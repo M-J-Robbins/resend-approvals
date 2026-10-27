@@ -80,6 +80,18 @@
     border-color: var(--text-error);
 }
 
+/* Review notes in the decision panel: smaller than the dialog's reason box. */
+.notes {
+    width: 100%;
+    min-height: calc(var(--spacing) * 16);
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 3);
+    border: var(--border-width) solid var(--border-control);
+    border-radius: var(--radius-lg);
+    background: var(--bg-base);
+    color: var(--text-emphasis);
+    resize: vertical;
+}
+
 .help {
     color: var(--text-default);
     font-size: var(--text-xs);

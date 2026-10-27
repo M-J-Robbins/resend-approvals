@@ -50,6 +50,7 @@ The review UI is at `/`. Sign in with the reviewer token. From there you can:
 
 - see pending drafts, with their recipient counts
 - inspect a draft like a received email: From, To (searchable, paged recipients), subject and preview text, a sandboxed preview of the HTML and its source, the email's size with a warning near Gmail's 102 KB clipping limit, and the revision history
+- check its review hints: a "Review hints (N)" button next to Approve lists things worth checking (so far: the email's size against Gmail's clipping limit). Each hint can be ignored or added to the review notes. The notes are the reason sent to the agent on rejection, and Approve is turned off while there are any
 - approve or reject it
 - watch sending progress, and resume a send that failed or stalled
 
@@ -205,12 +206,12 @@ tests/                 Vitest suites and the fake Resend
 - **Delivery webhooks**, to report delivered, bounced and complained per recipient.
 - **Richer review of the content:**
   - a toggle to view an email's HTML, plain-text and AMP versions, for emails that come from .eml files
-  - the From line and preview text shown under the subject
   - mobile presets that match each email client's real viewing area (its toolbars and padding), not just the phone's screen size
   - remote images blocked until the reviewer allows them
   - dark mode as Gmail and Outlook render it (their own colour inversion and selectors), not only `prefers-color-scheme`
   - warnings for images that won't load (`cid:`, relative paths)
   - schema.org markup extracted and checked
+  - colour contrast checked in dark mode and in Android/Gmail forced dark too, not only light mode
 
 ## Known limits
 

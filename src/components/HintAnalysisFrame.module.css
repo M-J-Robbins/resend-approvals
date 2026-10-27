@@ -1,0 +1,10 @@
+/* Laid out (so styles and boxes can be read) but off-screen, unseen and unreachable. */
+.frame {
+    position: fixed;
+    top: 0;
+    left: -10000px;
+    height: 800px;
+    border: 0;
+    visibility: hidden;
+    pointer-events: none;
+}

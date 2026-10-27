@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import { formatBytes } from "@/lib/client/format";
 import { colorSchemeSupport } from "@/lib/client/colorSchemeSupport";
+import { CLIP_TIP, emailBytes, formatKilobytes, gmailClipStatus } from "@/lib/client/emailSize";
 import { applyForceDark } from "@/lib/client/forceDark/apply";
 import { optsOutOfGmailForcedDark } from "@/lib/client/forceDark/lightOnly";
 import { highlightHtml, type TokenType } from "@/lib/client/highlightHtml";
@@ -17,12 +18,6 @@ const TABS = [
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
-/**
- * Gmail clips messages whose HTML is over about 102 KB, hiding the rest behind
- * "View entire message". Tracking added at send time (pixels, rewritten links)
- * makes the sent email bigger than the draft, so warn well before the limit.
- */
-const GMAIL_CLIP_BYTES = 102 * 1024;
 /** Portrait sizes in CSS pixels (height is the longer side). Landscape swaps them. */
 const DEVICES = [
   { name: "iPhone Duo (Folded)", width: 466, height: 678 },
@@ -62,18 +57,9 @@ type Scheme = (typeof SCHEMES)[number]["key"];
 function oriented({ width, height }: FrameSize, orientation: Orientation): FrameSize {
   return orientation === "portrait" ? { width, height } : { width: height, height: width };
 }
-const NEAR_CLIP_BYTES = 80 * 1024;
 
-const SIZE_STATUS = {
-  near: {
-    tone: "warning",
-    tip: "file size is close to 102kb Gmail clipping limit. Email tracking codes may take this over the limit",
-  },
-  over: {
-    tone: "error",
-    tip: "email code is over 102kb. This will get clipped in Gmail",
-  },
-} as const;
+/** The size chip's colour for each Gmail clipping status (lib/client/emailSize). */
+const CLIP_TONE = { near: "warning", over: "error" } as const;
 
 /**
  * Agent-written HTML is untrusted. It is rendered only inside an iframe with
@@ -105,9 +91,9 @@ export function EmailPreview({ html, subject }: { html: string; subject: string 
   });
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   // UTF-8 bytes, which is what is sent and what Gmail measures.
-  const bytes = useMemo(() => new TextEncoder().encode(html).length, [html]);
-  const sizeStatus = bytes >= GMAIL_CLIP_BYTES ? SIZE_STATUS.over : bytes > NEAR_CLIP_BYTES ? SIZE_STATUS.near : null;
-  const kilobytes = `${(bytes / 1024).toFixed(1)} KB`;
+  const bytes = useMemo(() => emailBytes(html), [html]);
+  const clip = gmailClipStatus(bytes);
+  const kilobytes = formatKilobytes(bytes);
   const codeRef = useRef<HTMLElement>(null);
   useSourceHighlights(codeRef, html, tab === "source");
 
@@ -295,19 +281,20 @@ export function EmailPreview({ html, subject }: { html: string; subject: string 
             frame
           )}
         </div>
-        <p className={styles.size}>
+        {/* A div, not a p: the tooltip renders its popover as a div. */}
+        <div className={styles.size}>
           Email size{" "}
-          {sizeStatus ? (
+          {clip ? (
             // The size itself is the trigger; the tooltip (also its accessible
             // description) says why it's flagged.
-            <Tooltip content={sizeStatus.tip} className={`${styles.sizeStatus} ${styles[sizeStatus.tone]}`}>
-              <StatusIcon tone={sizeStatus.tone} />
+            <Tooltip content={CLIP_TIP[clip]} className={`${styles.sizeStatus} ${styles[CLIP_TONE[clip]]}`}>
+              <StatusIcon tone={CLIP_TONE[clip]} />
               <strong className={styles.sizeValue}>{kilobytes}</strong>
             </Tooltip>
           ) : (
             <strong className={styles.sizeValue}>{kilobytes}</strong>
           )}
-        </p>
+        </div>
       </div>
 
       <div
