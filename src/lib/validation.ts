@@ -2,6 +2,7 @@ import { z } from "zod";
 import { draftStatus } from "@/db/schema";
 import { AppError, validationError } from "./errors";
 import { canonicalRecipients } from "./hash";
+import { MAX_REASON_LENGTH } from "./reviewLimits";
 
 /** Invalid addresses listed in an invalid_recipients error. */
 const MAX_REPORTED_INVALID = 20;
@@ -152,7 +153,7 @@ export const approveBody = z
 export const rejectBody = z
   .object({
     revision_id: z.string().min(1),
-    reason: z.string().trim().min(1, "A reason is required.").max(1000),
+    reason: z.string().trim().min(1, "A reason is required.").max(MAX_REASON_LENGTH),
   })
   .strict();
 

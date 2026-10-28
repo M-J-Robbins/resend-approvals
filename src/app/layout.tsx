@@ -8,6 +8,10 @@ export const metadata: Metadata = {
   description: "Review and approve emails drafted by agents.",
   // Private tool: keep it out of search engines.
   robots: { index: false, follow: false },
+  // No Referer on any request, including the email's own images in the
+  // preview: srcdoc frames inherit this page's policy, so a tracking pixel
+  // can't tell the email is being reviewed here.
+  referrer: "no-referrer",
   // For agents that land on the review UI: where the agent docs are.
   alternates: {
     types: {

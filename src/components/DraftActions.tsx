@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { api, ApiError, isConflict, type DraftView } from "@/lib/client/api";
 import { formatCount, parseCount, plural, relativeTime, shortHash } from "@/lib/client/format";
 import { reviewHints, sortHints, type Hint } from "@/lib/client/hints";
+import { MAX_REASON_LENGTH } from "@/lib/reviewLimits";
 import { useAnnounce } from "./Announcer";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
@@ -55,7 +56,8 @@ export function DraftActions({
   // The review notes: the reject reason, edited in the decision panel (and in
   // the Reject dialog). While it has content, Approve is turned off.
   const [reason, setReason] = useState("");
-  const [hintDecisions, setHintDecisions] = useState<Record<string, HintDecision>>({});
+  // Hints ignored on one revision; a new revision starts with none ignored.
+  const [ignored, setIgnored] = useState<{ revisionId: string; ids: string[] }>({ revisionId: "", ids: [] });
   const [reasonError, setReasonError] = useState<string | null>(null);
   const [typedCount, setTypedCount] = useState("");
   const [resumeNote, setResumeNote] = useState<string | null>(null);
@@ -155,7 +157,6 @@ export function DraftActions({
       const next = await api.reject(view.id, target.id, trimmed);
       setDialog(null);
       setReason("");
-      setHintDecisions({});
       succeeded(next);
       announce("Draft rejected. The agent can see your reason.");
     } catch (e) {
@@ -209,25 +210,26 @@ export function DraftActions({
 
   // A hint goes into the notes as its own line, so it can be taken out again.
   const noteLine = (hint: Hint) => `- ${hint.reviewNote ?? hint.title}`;
-  const decide = (hint: Hint, decision: HintDecision | null) =>
-    setHintDecisions((all) => {
-      const next = { ...all };
-      if (decision) next[hint.id] = decision;
-      else delete next[hint.id];
-      return next;
-    });
+  const ignoredIds = ignored.revisionId === view.revision.id ? ignored.ids : [];
+  // "Added" follows the notes, so it survives a reload and can't add a line twice.
+  const noteLines = new Set(reason.split("\n"));
+  const hintDecisions: Record<string, HintDecision> = {};
+  for (const hint of hints) {
+    if (ignoredIds.includes(hint.id)) hintDecisions[hint.id] = "ignored";
+    else if (noteLines.has(noteLine(hint))) hintDecisions[hint.id] = "added";
+  }
+  const setIgnoredIds = (ids: string[]) => setIgnored({ revisionId: view.revision.id, ids });
   const hintActions = {
-    onIgnore: (hint: Hint) => decide(hint, "ignored"),
-    onRestore: (hint: Hint) => decide(hint, null),
+    onIgnore: (hint: Hint) => setIgnoredIds([...ignoredIds, hint.id]),
+    onRestore: (hint: Hint) => setIgnoredIds(ignoredIds.filter((id) => id !== hint.id)),
     onAdd: (hint: Hint) => {
       setReason((notes) => (notes.trim() ? `${notes.trimEnd()}\n${noteLine(hint)}` : noteLine(hint)));
-      decide(hint, "added");
       announce("Added to the review notes. Approve is turned off while there are notes.");
     },
     onRemove: (hint: Hint) => {
-      // If the reviewer edited the line, it no longer matches and stays in the notes.
+      // If the reviewer edited the line, it no longer matches: it stays in the
+      // notes, and the hint shows as not added.
       setReason((notes) => notes.split("\n").filter((line) => line !== noteLine(hint)).join("\n").trim());
-      decide(hint, null);
     },
   };
 
@@ -285,7 +287,7 @@ export function DraftActions({
           id={notesId}
           className={styles.notes}
           rows={3}
-          maxLength={1000}
+          maxLength={MAX_REASON_LENGTH}
           value={reason}
           disabled={pending !== null}
           onChange={(e) => setReason(e.target.value)}
@@ -447,7 +449,7 @@ export function DraftActions({
               id={reasonId}
               className={styles.textarea}
               rows={4}
-              maxLength={1000}
+              maxLength={MAX_REASON_LENGTH}
               required
               autoFocus
               value={reason}
@@ -460,8 +462,8 @@ export function DraftActions({
               aria-describedby={`${reasonId}-help${reasonError ? ` ${reasonId}-error` : ""}`}
             />
             <p id={`${reasonId}-help`} className={styles.help}>
-              Be specific, for example “Wrong recipients” or “Remove the pricing section”. Up to 1000
-              characters.
+              Be specific, for example “Wrong recipients” or “Remove the pricing section”. Up to{" "}
+              {formatCount(MAX_REASON_LENGTH)} characters.
             </p>
             {reasonError && (
               <p id={`${reasonId}-error`} className={styles.fieldError}>
